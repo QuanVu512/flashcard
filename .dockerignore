@@ -1,0 +1,9 @@
+target/
+.m2/
+.tools/
+.git/
+.idea/
+.vscode/
+data/
+.env
+*.log

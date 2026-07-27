@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: flashcard
+    runtime: docker
+    plan: free
+    autoDeployTrigger: commit
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_USERNAME
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
