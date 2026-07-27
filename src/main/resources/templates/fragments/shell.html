@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<aside class="sidebar" th:fragment="sidebar(active)">
+    <div class="brand-row">
+        <button class="icon-button" type="button" aria-label="Menu">
+            <i class="bi bi-list"></i>
+        </button>
+        <a class="brand-mark" th:href="@{/library}" aria-label="Flashcard">F</a>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Điều hướng chính">
+        <a th:href="@{/library}" th:classappend="${active == 'library'} ? ' active'">
+            <i class="bi bi-house-door"></i>
+            <span>Trang chủ</span>
+        </a>
+        <a th:href="@{/library}" th:classappend="${active == 'library'} ? ' active'">
+            <i class="bi bi-folder2-open"></i>
+            <span>Thư viện</span>
+        </a>
+    </nav>
+
+    <div class="sidebar-section" id="folders-panel">
+        <div class="sidebar-title">Thư mục của bạn</div>
+        <div class="folder-list" th:if="${folders != null and !folders.isEmpty()}">
+            <a th:each="folder : ${folders}"
+               th:href="@{/folders/{id}(id=${folder.id})}"
+               th:classappend="${currentFolder != null and currentFolder.id == folder.id} ? ' active-folder'">
+                <i class="bi bi-folder"></i>
+                <span th:text="${folder.name}">Unit 1</span>
+            </a>
+        </div>
+        <button class="sidebar-action" type="button" data-bs-toggle="modal" data-bs-target="#folderModal">
+            <i class="bi bi-plus-lg"></i>
+            <span>Thư mục mới</span>
+        </button>
+    </div>
+
+    <div class="sidebar-section">
+        <div class="sidebar-title">Bắt đầu</div>
+        <a class="sidebar-link" th:href="@{/sets/new}">
+            <i class="bi bi-layers"></i>
+            <span>Flashcards</span>
+        </a>
+    </div>
+</aside>
+
+<header class="topbar" th:fragment="topbar">
+    <form class="top-search" th:action="@{/library}" method="get" role="search">
+        <i class="bi bi-search"></i>
+        <input type="search" name="q" th:value="${keyword}" placeholder="Tìm kiếm trong thư viện">
+    </form>
+    <div class="top-actions">
+        <a class="round-action primary" th:href="@{/sets/new}" aria-label="Tạo bộ flashcard">
+            <i class="bi bi-plus-lg"></i>
+        </a>
+        <div class="user-chip" th:if="${client != null}">
+            <span th:text="${#strings.substring(client.displayName, 0, 1)}">U</span>
+        </div>
+        <form th:action="@{/logout}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button class="logout-button" type="submit">Đăng xuất</button>
+        </form>
+    </div>
+</header>
+
+<div class="modal fade" id="folderModal" tabindex="-1" aria-labelledby="folderModalTitle" aria-hidden="true"
+     th:fragment="folderModal">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content clean-modal">
+            <form th:action="@{/folders}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="folderModalTitle">Tạo thư mục</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label" for="folderName">Tên thư mục</label>
+                    <input class="form-control" id="folderName" name="name" maxlength="140" required
+                           placeholder="Nhập tên thư mục">
+                    <label class="form-label mt-3" for="folderDescription">Ghi chú</label>
+                    <textarea class="form-control" id="folderDescription" name="description" maxlength="280" rows="3"
+                              placeholder="Nhập ghi chú ngắn cho thư mục"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Tạo thư mục</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

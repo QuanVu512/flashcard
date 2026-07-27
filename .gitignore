@@ -1,0 +1,9 @@
+target/
+.mvn/
+.m2/
+.tools/
+.idea/
+.vscode/
+data/
+.env
+*.log
