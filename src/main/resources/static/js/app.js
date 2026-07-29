@@ -8,15 +8,15 @@
                 <div class="term-fields">
                     <div>
                         <label class="form-label" for="card-term-${index}">Từ vựng</label>
-                        <input class="form-control" id="card-term-${index}" name="cards[${index}].term" placeholder="Nhập từ vựng">
+                        <input class="form-control" id="card-term-${index}" name="cards[${index}].term" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" placeholder="Nhập từ vựng">
                     </div>
                     <div>
                         <label class="form-label" for="card-definition-${index}">Nghĩa</label>
-                        <input class="form-control" id="card-definition-${index}" name="cards[${index}].definition" placeholder="Nhập nghĩa">
+                        <input class="form-control" id="card-definition-${index}" name="cards[${index}].definition" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" placeholder="Nhập nghĩa">
                     </div>
                     <div>
                         <label class="form-label" for="card-example-${index}">Ví dụ</label>
-                        <input class="form-control" id="card-example-${index}" name="cards[${index}].example" placeholder="Nhập ví dụ nếu có">
+                        <input class="form-control" id="card-example-${index}" name="cards[${index}].example" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" placeholder="Nhập ví dụ nếu có">
                     </div>
                 </div>
                 <button class="icon-button remove-row" type="button" data-remove-card aria-label="Xóa thẻ">
@@ -99,6 +99,33 @@
 
     setupFlashcards();
     setupPractice();
+    setupCardEntryFields();
+
+    function setupCardEntryFields() {
+        if (!cardRows) {
+            return;
+        }
+
+        function applyInputHints(input) {
+            input.setAttribute("autocomplete", "new-password");
+            input.setAttribute("autocapitalize", "off");
+            input.setAttribute("autocorrect", "off");
+            input.setAttribute("spellcheck", "false");
+            input.setAttribute("aria-autocomplete", "none");
+        }
+
+        function configureRow(row) {
+            row.querySelectorAll("input").forEach((input) => applyInputHints(input));
+        }
+
+        cardRows.querySelectorAll("[data-card-row]").forEach((row) => configureRow(row));
+        cardRows.addEventListener("focusin", (event) => {
+            const row = event.target.closest("[data-card-row]");
+            if (row) {
+                configureRow(row);
+            }
+        });
+    }
 
     function setupFlashcards() {
         const stage = document.querySelector("[data-study-stage]");

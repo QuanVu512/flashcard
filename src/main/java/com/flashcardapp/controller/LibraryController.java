@@ -40,7 +40,7 @@ public class LibraryController {
         model.addAttribute("groupedSets", libraryService.groupByDate(sets));
         model.addAttribute("keyword", keyword == null ? "" : keyword);
         model.addAttribute("currentFolder", null);
-        model.addAttribute("pageTitle", "Thu vien cua ban");
+        model.addAttribute("pageTitle", "Thư viện của bạn");
         return "library";
     }
 

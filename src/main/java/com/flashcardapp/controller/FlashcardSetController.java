@@ -39,7 +39,7 @@ public class FlashcardSetController {
         model.addAttribute("flashcardSetForm", form);
         model.addAttribute("formMode", "create");
         model.addAttribute("formAction", "/sets");
-        model.addAttribute("submitLabel", "Tạo bộ flashcard");
+        model.addAttribute("submitLabel", "Lưu");
         return "set-form";
     }
 
@@ -53,7 +53,7 @@ public class FlashcardSetController {
             libraryService.ensureCardRows(form);
             model.addAttribute("formMode", "create");
             model.addAttribute("formAction", "/sets");
-            model.addAttribute("submitLabel", "Tạo bộ flashcard");
+            model.addAttribute("submitLabel", "Lưu");
             return "set-form";
         }
         Client client = userService.currentClient(authentication.getName());
@@ -68,7 +68,7 @@ public class FlashcardSetController {
         Client client = userService.currentClient(authentication.getName());
         FlashcardSet set = libraryService.requireSet(client, id);
         model.addAttribute("set", set);
-        model.addAttribute("studyCards", libraryService.studyCards(set));
+        model.addAttribute("studyCards", libraryService.studyCardsForSet(client, id));
         model.addAttribute("activeMode", "flashcards");
         return "study";
     }
@@ -127,10 +127,10 @@ public class FlashcardSetController {
         Client client = userService.currentClient(authentication.getName());
         FlashcardSet set = libraryService.requireSet(client, id);
         model.addAttribute("set", set);
-        model.addAttribute("flashcardSetForm", libraryService.toForm(set));
+        model.addAttribute("flashcardSetForm", libraryService.formForSet(client, id));
         model.addAttribute("formMode", "edit");
         model.addAttribute("formAction", "/sets/" + id + "/edit");
-        model.addAttribute("submitLabel", "Lưu thay đổi");
+        model.addAttribute("submitLabel", "Lưu");
         return "set-form";
     }
 
@@ -145,7 +145,7 @@ public class FlashcardSetController {
             libraryService.ensureCardRows(form);
             model.addAttribute("formMode", "edit");
             model.addAttribute("formAction", "/sets/" + id + "/edit");
-            model.addAttribute("submitLabel", "Lưu thay đổi");
+            model.addAttribute("submitLabel", "Lưu");
             return "set-form";
         }
         Client client = userService.currentClient(authentication.getName());

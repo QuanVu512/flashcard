@@ -612,6 +612,19 @@ a {
     gap: 14px;
 }
 
+.add-card-row {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 14px;
+}
+
+.add-card-row .btn {
+    align-items: center;
+    display: inline-flex;
+    gap: 8px;
+    min-height: 44px;
+}
+
 .term-row {
     align-items: start;
     display: grid;
@@ -666,6 +679,10 @@ a {
     flex-wrap: wrap;
     gap: 10px;
     justify-content: flex-end;
+}
+
+.heading-actions form {
+    margin: 0;
 }
 
 .study-mode-tabs {

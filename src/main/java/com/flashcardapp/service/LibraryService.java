@@ -47,6 +47,24 @@ public class LibraryService {
         return folderRepository.save(folder);
     }
 
+    @Transactional
+    public Folder updateFolder(Client client, UUID folderId, String name, String description) {
+        Folder folder = requireFolder(client, folderId);
+        folder.setName(name.trim());
+        folder.setDescription(trimToNull(description));
+        return folderRepository.save(folder);
+    }
+
+    @Transactional
+    public void deleteFolder(Client client, UUID folderId) {
+        Folder folder = requireFolder(client, folderId);
+        List<FlashcardSet> folderSets = flashcardSetRepository.findByClientAndFolderOrderByCreatedAtDesc(client, folder);
+        folderSets.forEach(set -> set.setFolder(null));
+        flashcardSetRepository.saveAll(folderSets);
+        flashcardSetRepository.flush();
+        folderRepository.delete(folder);
+    }
+
     @Transactional(readOnly = true)
     public Folder requireFolder(Client client, UUID folderId) {
         return folderRepository.findByIdAndClient(folderId, client)
@@ -92,6 +110,16 @@ public class LibraryService {
     public void deleteSet(Client client, UUID setId) {
         FlashcardSet set = requireSet(client, setId);
         flashcardSetRepository.delete(set);
+    }
+
+    @Transactional(readOnly = true)
+    public FlashcardSetForm formForSet(Client client, UUID setId) {
+        return toForm(requireSet(client, setId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<StudyCardView> studyCardsForSet(Client client, UUID setId) {
+        return studyCards(requireSet(client, setId));
     }
 
     public FlashcardSetForm toForm(FlashcardSet set) {

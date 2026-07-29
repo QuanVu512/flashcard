@@ -11,3 +11,15 @@ services:
         sync: false
       - key: DATABASE_PASSWORD
         sync: false
+      # Translation suggestions are paused for now.
+      # Re-enable these after the external API account is ready.
+      # - key: TRANSLATION_PROVIDER
+      #   value: azure
+      # - key: TRANSLATION_DEFAULT_TARGET
+      #   value: vi
+      # - key: AZURE_TRANSLATOR_ENDPOINT
+      #   value: https://api.cognitive.microsofttranslator.com
+      # - key: AZURE_TRANSLATOR_KEY
+      #   sync: false
+      # - key: AZURE_TRANSLATOR_REGION
+      #   sync: false
