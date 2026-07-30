@@ -127,13 +127,13 @@ public class LibraryService {
         form.setTitle(set.getTitle());
         form.setDescription(set.getDescription());
         form.setFolderId(set.getFolder() == null ? null : set.getFolder().getId());
-        form.setCards(set.getCards().stream().map(card -> {
+        form.setCards(new ArrayList<>(set.getCards().stream().map(card -> {
             CardLine line = new CardLine();
             line.setTerm(card.getTerm());
             line.setDefinition(card.getDefinition());
             line.setExample(card.getExample());
             return line;
-        }).toList());
+        }).toList()));
         ensureCardRows(form);
         return form;
     }

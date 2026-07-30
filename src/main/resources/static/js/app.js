@@ -1,5 +1,79 @@
 (function () {
     const cardRows = document.querySelector("#cardRows");
+    const REAL_CARD_NAME = "cardInputName";
+    const REAL_CARD_NAME_ATTR = "data-card-input-name";
+
+    function applyInputHints(input) {
+        input.setAttribute("autocomplete", "off");
+        input.setAttribute("autocapitalize", "off");
+        input.setAttribute("autocorrect", "off");
+        input.setAttribute("spellcheck", "false");
+        input.setAttribute("aria-autocomplete", "none");
+        input.setAttribute("data-lpignore", "true");
+        input.setAttribute("data-1p-ignore", "true");
+    }
+
+    function prepareCardInput(input) {
+        applyInputHints(input);
+        if (!input.dataset[REAL_CARD_NAME] && input.name) {
+            input.dataset[REAL_CARD_NAME] = input.name;
+        }
+        refreshCardInputId(input);
+        if (input.dataset[REAL_CARD_NAME]) {
+            input.removeAttribute("name");
+        }
+    }
+
+    function prepareCardRow(row) {
+        row.querySelectorAll("input").forEach((input) => prepareCardInput(input));
+    }
+
+    function restoreCardInputNames(scope) {
+        scope.querySelectorAll(`input[${REAL_CARD_NAME_ATTR}]`).forEach((input) => {
+            input.name = input.dataset[REAL_CARD_NAME];
+        });
+    }
+
+    function refreshCardInputId(input) {
+        if (!cardRows) {
+            return;
+        }
+        const row = input.closest("[data-card-row]");
+        if (!row) {
+            return;
+        }
+        if (!input.dataset.cardInputUid) {
+            input.dataset.cardInputUid = Math.random().toString(36).slice(2, 10);
+        }
+        const rowIndex = Array.from(cardRows.querySelectorAll("[data-card-row]")).indexOf(row);
+        const kind = cardInputKind(input);
+        const id = `fc-${kind}-${Math.max(rowIndex, 0)}-${input.dataset.cardInputUid}`;
+        input.id = id;
+        input.closest("div")?.querySelector("label")?.setAttribute("for", id);
+    }
+
+    function cardInputKind(input) {
+        const source = `${input.dataset[REAL_CARD_NAME] || ""} ${input.id || ""}`;
+        if (source.includes("definition")) {
+            return "definition";
+        }
+        if (source.includes("example")) {
+            return "example";
+        }
+        return "term";
+    }
+
+    function updateCardInputName(input, index) {
+        const currentName = input.dataset[REAL_CARD_NAME] || input.name;
+        if (!currentName) {
+            return;
+        }
+        const nextName = currentName.replace(/cards\[\d+]/, `cards[${index}]`);
+        input.dataset[REAL_CARD_NAME] = nextName;
+        if (input.hasAttribute("name")) {
+            input.name = nextName;
+        }
+    }
 
     function cardRowTemplate(index) {
         return `
@@ -8,15 +82,15 @@
                 <div class="term-fields">
                     <div>
                         <label class="form-label" for="card-term-${index}">Từ vựng</label>
-                        <input class="form-control" id="card-term-${index}" name="cards[${index}].term" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" placeholder="Nhập từ vựng">
+                        <input class="form-control" id="card-term-${index}" data-card-input-name="cards[${index}].term" data-translation-term autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" placeholder="Nhập từ vựng">
                     </div>
                     <div>
                         <label class="form-label" for="card-definition-${index}">Nghĩa</label>
-                        <input class="form-control" id="card-definition-${index}" name="cards[${index}].definition" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" placeholder="Nhập nghĩa">
+                        <input class="form-control" id="card-definition-${index}" data-card-input-name="cards[${index}].definition" data-translation-definition autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" placeholder="Nhập nghĩa">
                     </div>
                     <div>
                         <label class="form-label" for="card-example-${index}">Ví dụ</label>
-                        <input class="form-control" id="card-example-${index}" name="cards[${index}].example" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" placeholder="Nhập ví dụ nếu có">
+                        <input class="form-control" id="card-example-${index}" data-card-input-name="cards[${index}].example" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" placeholder="Nhập ví dụ nếu có">
                     </div>
                 </div>
                 <button class="icon-button remove-row" type="button" data-remove-card aria-label="Xóa thẻ">
@@ -41,7 +115,7 @@
         cardRows.querySelectorAll("[data-card-row]").forEach((row, index) => {
             row.querySelector(".term-number").textContent = String(index + 1);
             row.querySelectorAll("input").forEach((input) => {
-                input.name = input.name.replace(/cards\[\d+]/, `cards[${index}]`);
+                updateCardInputName(input, index);
                 if (input.id.includes("term")) {
                     input.id = `card-term-${index}`;
                 }
@@ -64,6 +138,7 @@
                     label.setAttribute("for", `card-example-${index}`);
                 }
             });
+            prepareCardRow(row);
         });
     }
 
@@ -72,7 +147,11 @@
         if (addButton && cardRows) {
             const index = cardRows.querySelectorAll("[data-card-row]").length;
             cardRows.insertAdjacentHTML("beforeend", cardRowTemplate(index));
-            const newest = cardRows.querySelector("[data-card-row]:last-child input");
+            const newestRow = cardRows.querySelector("[data-card-row]:last-child");
+            if (newestRow) {
+                prepareCardRow(newestRow);
+            }
+            const newest = newestRow?.querySelector("input");
             if (newest) {
                 newest.focus();
             }
@@ -97,25 +176,22 @@
         });
     });
 
+    document.querySelectorAll(".set-form").forEach((form) => {
+        form.addEventListener("submit", () => restoreCardInputNames(form));
+    });
+
     setupFlashcards();
     setupPractice();
     setupCardEntryFields();
+    setupTranslationSuggestions();
 
     function setupCardEntryFields() {
         if (!cardRows) {
             return;
         }
 
-        function applyInputHints(input) {
-            input.setAttribute("autocomplete", "new-password");
-            input.setAttribute("autocapitalize", "off");
-            input.setAttribute("autocorrect", "off");
-            input.setAttribute("spellcheck", "false");
-            input.setAttribute("aria-autocomplete", "none");
-        }
-
         function configureRow(row) {
-            row.querySelectorAll("input").forEach((input) => applyInputHints(input));
+            prepareCardRow(row);
         }
 
         cardRows.querySelectorAll("[data-card-row]").forEach((row) => configureRow(row));
@@ -124,6 +200,217 @@
             if (row) {
                 configureRow(row);
             }
+        });
+    }
+
+    function setupTranslationSuggestions() {
+        if (!cardRows) {
+            return;
+        }
+
+        const timers = new WeakMap();
+        const requestTokens = new WeakMap();
+        const MIN_TEXT_LENGTH = 2;
+        const DEBOUNCE_MS = 650;
+        const REQUEST_TIMEOUT_MS = 5000;
+
+        function termInput(row) {
+            return row.querySelector("[data-translation-term], input[name$='.term']");
+        }
+
+        function definitionInput(row) {
+            return row.querySelector("[data-translation-definition], input[name$='.definition']");
+        }
+
+        function configureRow(row) {
+            const term = termInput(row);
+            const definition = definitionInput(row);
+            if (term) {
+                term.setAttribute("data-translation-term", "");
+            }
+            if (definition) {
+                definition.setAttribute("data-translation-definition", "");
+                suggestionBox(row);
+            }
+        }
+
+        function suggestionBox(row) {
+            const definition = definitionInput(row);
+            if (!definition) {
+                return null;
+            }
+            const field = definition.parentElement;
+            field.classList.add("translation-field");
+            let box = field.querySelector("[data-translation-suggestions]");
+            if (!box) {
+                box = document.createElement("div");
+                box.className = "translation-suggestions";
+                box.setAttribute("data-translation-suggestions", "");
+                box.hidden = true;
+                definition.insertAdjacentElement("afterend", box);
+            }
+            return box;
+        }
+
+        function hideSuggestions(row) {
+            const box = suggestionBox(row);
+            if (box) {
+                box.hidden = true;
+                box.innerHTML = "";
+            }
+        }
+
+        function showState(row, message, autoHide = false) {
+            const box = suggestionBox(row);
+            if (!box) {
+                return;
+            }
+            box.innerHTML = "";
+            const state = document.createElement("div");
+            state.className = "translation-suggestion-state";
+            state.textContent = message;
+            box.appendChild(state);
+            box.hidden = false;
+            if (autoHide) {
+                window.setTimeout(() => {
+                    if (box.contains(state)) {
+                        hideSuggestions(row);
+                    }
+                }, 2600);
+            }
+        }
+
+        function renderSuggestions(row, payload) {
+            const box = suggestionBox(row);
+            const definition = definitionInput(row);
+            if (!box || !definition) {
+                return;
+            }
+
+            const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
+            if (!payload?.enabled) {
+                showState(row, payload?.message || "Chưa bật gợi ý dịch.", true);
+                return;
+            }
+            if (!suggestions.length) {
+                if (payload?.message) {
+                    showState(row, payload.message, true);
+                    return;
+                }
+                hideSuggestions(row);
+                return;
+            }
+
+            box.innerHTML = "";
+            const label = document.createElement("div");
+            label.className = "translation-suggestion-label";
+            label.textContent = payload.detectedLanguage
+                ? `Gợi ý nghĩa (${payload.detectedLanguage} -> ${payload.targetLanguage})`
+                : "Gợi ý nghĩa";
+            box.appendChild(label);
+
+            suggestions.forEach((suggestion) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "translation-suggestion-item";
+                button.textContent = suggestion;
+                button.addEventListener("click", () => {
+                    definition.value = suggestion;
+                    definition.dispatchEvent(new Event("input", {bubbles: true}));
+                    hideSuggestions(row);
+                    definition.focus();
+                });
+                box.appendChild(button);
+            });
+            box.hidden = false;
+        }
+
+        async function fetchSuggestion(row, text) {
+            const token = Symbol("translation-request");
+            requestTokens.set(row, token);
+            showState(row, "Đang tìm nghĩa...");
+
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+            try {
+                const params = new URLSearchParams({text});
+                const response = await fetch(`/api/translation/suggest?${params.toString()}`, {
+                    headers: {
+                        Accept: "application/json"
+                    },
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    signal: controller.signal
+                });
+                if (!response.ok) {
+                    showState(row, "Chưa nhận được gợi ý.", true);
+                    return;
+                }
+                const payload = await response.json();
+                if (requestTokens.get(row) === token) {
+                    renderSuggestions(row, payload);
+                }
+            } catch (error) {
+                if (requestTokens.get(row) === token) {
+                    showState(row, "Không nhận được gợi ý. Kiểm tra Azure key hoặc mạng.", true);
+                }
+            } finally {
+                window.clearTimeout(timeoutId);
+            }
+        }
+
+        function scheduleSuggestion(row) {
+            configureRow(row);
+            const term = termInput(row);
+            const definition = definitionInput(row);
+            if (!term || !definition) {
+                return;
+            }
+            const text = term.value.trim();
+            if (definition.value.trim() && document.activeElement !== term) {
+                hideSuggestions(row);
+                return;
+            }
+            if (text.length < MIN_TEXT_LENGTH) {
+                hideSuggestions(row);
+                return;
+            }
+
+            window.clearTimeout(timers.get(row));
+            const timerId = window.setTimeout(() => fetchSuggestion(row, text), DEBOUNCE_MS);
+            timers.set(row, timerId);
+        }
+
+        cardRows.querySelectorAll("[data-card-row]").forEach((row) => configureRow(row));
+        cardRows.addEventListener("input", (event) => {
+            const row = event.target.closest("[data-card-row]");
+            if (!row) {
+                return;
+            }
+            configureRow(row);
+            if (event.target === termInput(row)) {
+                scheduleSuggestion(row);
+            }
+            if (event.target === definitionInput(row)) {
+                hideSuggestions(row);
+            }
+        });
+        cardRows.addEventListener("focusin", (event) => {
+            const row = event.target.closest("[data-card-row]");
+            if (!row) {
+                return;
+            }
+            configureRow(row);
+            if (event.target === termInput(row)) {
+                scheduleSuggestion(row);
+            }
+        });
+        document.addEventListener("click", (event) => {
+            if (event.target.closest(".translation-field")) {
+                return;
+            }
+            cardRows.querySelectorAll("[data-card-row]").forEach((row) => hideSuggestions(row));
         });
     }
 
