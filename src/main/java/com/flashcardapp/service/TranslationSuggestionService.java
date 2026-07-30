@@ -41,8 +41,8 @@ public class TranslationSuggestionService {
         this.azureRegion = azureRegion == null ? "" : azureRegion.trim();
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofSeconds(4));
-        requestFactory.setReadTimeout(Duration.ofSeconds(4));
+        requestFactory.setConnectTimeout(Duration.ofSeconds(10));
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));
         this.restClient = RestClient.builder()
                 .baseUrl(trimTrailingSlash(azureEndpoint))
                 .requestFactory(requestFactory)
@@ -116,7 +116,7 @@ public class TranslationSuggestionService {
         } catch (RestClientResponseException exception) {
             return AzureTranslationResult.empty(messageForAzureStatus(exception.getStatusCode().value()));
         } catch (Exception ignored) {
-            return AzureTranslationResult.empty("Azure chưa phản hồi. Kiểm tra key, region hoặc kết nối mạng.");
+            return AzureTranslationResult.empty("Dịch đang phản hồi chậm. Thử lại sau một chút.");
         }
     }
 

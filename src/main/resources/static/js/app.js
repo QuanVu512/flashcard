@@ -212,7 +212,7 @@
         const requestTokens = new WeakMap();
         const MIN_TEXT_LENGTH = 2;
         const DEBOUNCE_MS = 650;
-        const REQUEST_TIMEOUT_MS = 5000;
+        const REQUEST_TIMEOUT_MS = 12000;
 
         function termInput(row) {
             return row.querySelector("[data-translation-term], input[name$='.term']");
@@ -325,14 +325,9 @@
             box.hidden = false;
         }
 
-        async function fetchSuggestion(row, text) {
-            const token = Symbol("translation-request");
-            requestTokens.set(row, token);
-            showState(row, "Đang tìm nghĩa...");
-
+        async function requestSuggestion(text) {
             const controller = new AbortController();
             const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
             try {
                 const params = new URLSearchParams({text});
                 const response = await fetch(`/api/translation/suggest?${params.toString()}`, {
@@ -343,20 +338,34 @@
                     cache: "no-store",
                     signal: controller.signal
                 });
-                if (!response.ok) {
-                    showState(row, "Chưa nhận được gợi ý.", true);
+                return response.ok ? response.json() : null;
+            } finally {
+                window.clearTimeout(timeoutId);
+            }
+        }
+
+        async function fetchSuggestion(row, text) {
+            const token = Symbol("translation-request");
+            requestTokens.set(row, token);
+            showState(row, "Đang tìm nghĩa...");
+
+            try {
+                let payload = await requestSuggestion(text);
+                if (!payload) {
+                    await new Promise((resolve) => window.setTimeout(resolve, 900));
+                    payload = await requestSuggestion(text);
+                }
+                if (!payload) {
+                    showState(row, "Dịch đang phản hồi chậm. Thử lại sau một chút.", true);
                     return;
                 }
-                const payload = await response.json();
                 if (requestTokens.get(row) === token) {
                     renderSuggestions(row, payload);
                 }
             } catch (error) {
                 if (requestTokens.get(row) === token) {
-                    showState(row, "Không nhận được gợi ý. Kiểm tra Azure key hoặc mạng.", true);
+                    showState(row, "Dịch đang phản hồi chậm. Thử lại sau một chút.", true);
                 }
-            } finally {
-                window.clearTimeout(timeoutId);
             }
         }
 
