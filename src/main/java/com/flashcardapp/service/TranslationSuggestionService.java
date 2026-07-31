@@ -143,10 +143,11 @@ public class TranslationSuggestionService {
     }
 
     private List<String> uniqueSuggestions(String translatedText) {
+        String normalizedText = trimToEmpty(translatedText).toLowerCase(Locale.ROOT);
         Set<String> suggestions = new LinkedHashSet<>();
-        suggestions.add(trimToEmpty(translatedText));
+        suggestions.add(normalizedText);
 
-        for (String part : translatedText.split("[;,/]|\\n")) {
+        for (String part : normalizedText.split("[;,/]|\\n")) {
             String value = trimToEmpty(part);
             if (!value.isBlank()) {
                 suggestions.add(value);
