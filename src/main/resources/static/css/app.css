@@ -300,6 +300,23 @@ a {
     color: #fff;
 }
 
+.score-chip {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink);
+    display: inline-flex;
+    font-weight: 900;
+    gap: 7px;
+    min-height: 42px;
+    padding: 0 13px;
+}
+
+.score-chip i {
+    color: var(--yellow);
+}
+
 .user-chip,
 .avatar-mini {
     align-items: center;
@@ -688,7 +705,7 @@ a {
 .study-mode-tabs {
     display: grid;
     gap: 14px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     margin-bottom: 22px;
 }
 
@@ -1141,6 +1158,198 @@ a {
     outline: none;
 }
 
+.flip-content {
+    max-width: 1180px;
+}
+
+.flip-game-shell {
+    display: grid;
+    gap: 18px;
+}
+
+.flip-game-toolbar {
+    align-items: stretch;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.flip-game-stat {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(23, 33, 63, 0.05);
+    display: grid;
+    min-width: 118px;
+    padding: 12px 16px;
+}
+
+.flip-game-stat span {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 900;
+}
+
+.flip-game-stat strong {
+    color: var(--brand);
+    font-size: 1.55rem;
+    font-weight: 900;
+}
+
+.flip-game-toolbar .btn {
+    align-self: center;
+    min-height: 46px;
+}
+
+.flip-sound-toggle {
+    align-items: center;
+    align-self: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    box-shadow: 0 8px 20px rgba(23, 33, 63, 0.05);
+    color: var(--brand);
+    display: inline-flex;
+    height: 46px;
+    justify-content: center;
+    padding: 0;
+    transition: border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 160ms ease;
+    width: 46px;
+}
+
+.flip-sound-toggle:hover,
+.flip-sound-toggle:focus {
+    border-color: rgba(66, 87, 255, 0.36);
+    box-shadow: 0 12px 24px rgba(23, 33, 63, 0.1);
+    color: var(--brand-strong);
+    outline: none;
+    transform: translateY(-1px);
+}
+
+.flip-sound-toggle.is-muted {
+    color: var(--muted);
+}
+
+.flip-game-board {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(23, 33, 63, 0.06);
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 22px;
+}
+
+.flip-game-board.is-empty {
+    display: block;
+}
+
+.flip-memory-card {
+    aspect-ratio: 1 / 0.72;
+    background: transparent;
+    border: 0;
+    color: var(--ink);
+    min-height: 118px;
+    padding: 0;
+    perspective: 900px;
+    position: relative;
+}
+
+.flip-memory-face {
+    align-content: center;
+    backface-visibility: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 18px rgba(23, 33, 63, 0.06);
+    display: grid;
+    gap: 8px;
+    inset: 0;
+    justify-items: center;
+    padding: 14px;
+    position: absolute;
+    text-align: center;
+    transition: transform 240ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.flip-memory-front {
+    background:
+        linear-gradient(135deg, rgba(66, 87, 255, 0.95), rgba(0, 138, 131, 0.92));
+    color: #fff;
+}
+
+.flip-memory-front i {
+    font-size: 1.8rem;
+}
+
+.flip-memory-back {
+    background: #fff;
+    transform: rotateY(180deg);
+}
+
+.flip-memory-back small {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.flip-memory-back strong {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    font-weight: 900;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.flip-memory-card:hover .flip-memory-front {
+    border-color: rgba(66, 87, 255, 0.42);
+    box-shadow: 0 12px 24px rgba(23, 33, 63, 0.1);
+}
+
+.flip-memory-card.is-flipped .flip-memory-front,
+.flip-memory-card.is-matched .flip-memory-front {
+    transform: rotateY(180deg);
+}
+
+.flip-memory-card.is-flipped .flip-memory-back,
+.flip-memory-card.is-matched .flip-memory-back {
+    transform: rotateY(360deg);
+}
+
+.flip-memory-card.is-matched .flip-memory-back {
+    background: #eefaf6;
+    border-color: #27a878;
+}
+
+.flip-memory-card.is-wrong .flip-memory-back {
+    background: #fff3f3;
+    border-color: #e45b66;
+}
+
+.flip-game-empty {
+    align-items: center;
+    color: var(--muted);
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+    min-height: 260px;
+    text-align: center;
+}
+
+.flip-game-empty i {
+    color: var(--brand);
+    font-size: 2.4rem;
+}
+
+.flip-game-empty strong {
+    color: var(--ink);
+    font-size: 1.2rem;
+}
+
+.flip-game-result[hidden] {
+    display: none;
+}
 @media (max-width: 980px) {
     .app-shell {
         display: block;
@@ -1194,6 +1403,10 @@ a {
     .answer-grid,
     .setup-grid {
         grid-template-columns: 1fr;
+    }
+
+    .flip-game-board {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
@@ -1252,5 +1465,15 @@ a {
 
     .term-list-row p {
         grid-column: 2;
+    }
+
+    .flip-game-board {
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding: 14px;
+    }
+
+    .flip-memory-card {
+        min-height: 108px;
     }
 }

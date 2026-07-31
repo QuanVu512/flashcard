@@ -175,6 +175,13 @@ public class LibraryService {
         return cardsForPractice(client, set).size();
     }
 
+    @Transactional(readOnly = true)
+    public List<StudyCardView> gameCards(Client client, FlashcardSet set) {
+        return cardsForPractice(client, set).stream()
+                .map(card -> new StudyCardView(card.getTerm(), card.getDefinition(), card.getExample()))
+                .toList();
+    }
+
     public String normalizeTestMode(String testMode) {
         if (TEST_MODE_TERM.equalsIgnoreCase(testMode)) {
             return TEST_MODE_TERM;

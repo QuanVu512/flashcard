@@ -47,7 +47,18 @@ public class UserService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("Khong tim thay nguoi dung"))
                 .getClient();
         client.getDisplayName();
+        client.getScore();
         return client;
+    }
+
+    @Transactional
+    public long addScore(String email, long points) {
+        long safePoints = Math.max(0, Math.min(points, 1_000_000));
+        Client client = appUserRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Khong tim thay nguoi dung"))
+                .getClient();
+        client.addScore(safePoints);
+        return client.getScore();
     }
 
     @Override

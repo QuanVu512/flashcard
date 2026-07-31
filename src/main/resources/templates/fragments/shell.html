@@ -54,6 +54,10 @@
         <a class="round-action primary" th:href="@{/sets/new}" aria-label="Tạo bộ flashcard">
             <i class="bi bi-plus-lg"></i>
         </a>
+        <div class="score-chip" th:if="${client != null}">
+            <i class="bi bi-trophy-fill"></i>
+            <span data-client-score th:text="${client.score}">0</span>
+        </div>
         <div class="user-chip" th:if="${client != null}">
             <span th:text="${#strings.substring(client.displayName, 0, 1)}">U</span>
         </div>

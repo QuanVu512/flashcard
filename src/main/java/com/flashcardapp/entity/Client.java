@@ -25,6 +25,9 @@ public class Client {
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private long score = 0L;
+
     @OneToOne(mappedBy = "client")
     private AppUser user;
 
@@ -42,6 +45,16 @@ public class Client {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public long getScore() {
+        return score;
+    }
+
+    public void addScore(long points) {
+        if (points > 0) {
+            score += points;
+        }
     }
 
     public AppUser getUser() {

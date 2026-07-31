@@ -129,6 +129,18 @@ public class FlashcardSetController {
         return "test";
     }
 
+    @GetMapping("/sets/{id}/flip")
+    public String flipGame(@PathVariable UUID id,
+                           Authentication authentication,
+                           Model model) {
+        Client client = userService.currentClient(authentication.getName());
+        FlashcardSet set = libraryService.requireSet(client, id);
+        model.addAttribute("set", set);
+        model.addAttribute("activeMode", "flip");
+        model.addAttribute("gameCards", libraryService.gameCards(client, set));
+        return "flip-game";
+    }
+
     @GetMapping("/sets/{id}/edit")
     public String editSet(@PathVariable UUID id,
                           Authentication authentication,

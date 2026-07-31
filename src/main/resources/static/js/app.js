@@ -182,6 +182,7 @@
 
     setupFlashcards();
     setupPractice();
+    setupFlipGame();
     setupCardEntryFields();
     setupTranslationSuggestions();
 
@@ -707,5 +708,331 @@
 
         renderQuestion();
         startTimer();
+    }
+
+    function setupFlipGame() {
+        const root = document.querySelector("[data-flip-game-root]");
+        if (!root) {
+            return;
+        }
+
+        const sourceCards = Array.isArray(window.flipGameCards)
+            ? window.flipGameCards.filter((card) => textValue(card.term) && textValue(card.definition))
+            : [];
+        const board = root.querySelector("[data-flip-board]");
+        const scoreElement = root.querySelector("[data-flip-score]");
+        const movesElement = root.querySelector("[data-flip-moves]");
+        const comboElement = root.querySelector("[data-flip-combo]");
+        const result = root.querySelector("[data-flip-result]");
+        const summary = root.querySelector("[data-flip-summary]");
+        const restartButton = root.querySelector("[data-flip-restart]");
+        const playAgainButton = root.querySelector("[data-flip-play-again]");
+        const soundButton = root.querySelector("[data-flip-sound]");
+        const soundIcon = soundButton?.querySelector("i");
+        const maxPairs = 12;
+
+        let deck = [];
+        let selected = [];
+        let matchedPairs = 0;
+        let moves = 0;
+        let score = 0;
+        let combo = 0;
+        let locked = false;
+        let scoreSaved = false;
+        let soundEnabled = readSoundPreference();
+        let audioContext = null;
+
+        restartButton?.addEventListener("click", () => {
+            playSound("shuffle");
+            startGame();
+        });
+        playAgainButton?.addEventListener("click", () => {
+            playSound("shuffle");
+            startGame();
+        });
+        soundButton?.addEventListener("click", () => {
+            soundEnabled = !soundEnabled;
+            saveSoundPreference(soundEnabled);
+            renderSoundState();
+            if (soundEnabled) {
+                playSound("toggle");
+            }
+        });
+        renderSoundState();
+        startGame();
+
+        function startGame() {
+            const selectedCards = shuffle([...sourceCards]).slice(0, maxPairs);
+            selected = [];
+            matchedPairs = 0;
+            moves = 0;
+            score = 0;
+            combo = 0;
+            locked = false;
+            scoreSaved = false;
+            result.hidden = true;
+            deck = shuffle(selectedCards.flatMap((card, index) => [
+                {id: `${index}-term`, pairId: index, kind: "term", label: "T\u1eeb v\u1ef1ng", value: textValue(card.term)},
+                {id: `${index}-definition`, pairId: index, kind: "definition", label: "Ngh\u0129a", value: textValue(card.definition)}
+            ]));
+            renderStats();
+            renderBoard();
+        }
+
+        function renderBoard() {
+            board.innerHTML = "";
+            board.classList.toggle("is-empty", deck.length === 0);
+            if (!deck.length) {
+                const empty = document.createElement("div");
+                empty.className = "flip-game-empty";
+                empty.innerHTML = `<i class="bi bi-grid-3x3-gap"></i><strong>Ch\u01b0a c\u00f3 \u0111\u1ee7 th\u1ebb \u0111\u1ec3 ch\u01a1i</strong><span>H\u00e3y th\u00eam t\u1eeb v\u1ef1ng v\u00e0 ngh\u0129a tr\u01b0\u1edbc nh\u00e9.</span>`;
+                board.appendChild(empty);
+                return;
+            }
+
+            deck.forEach((card) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "flip-memory-card";
+                button.dataset.cardId = card.id;
+                button.innerHTML = `
+                    <span class="flip-memory-face flip-memory-front">
+                        <i class="bi bi-stars"></i>
+                    </span>
+                    <span class="flip-memory-face flip-memory-back">
+                        <small></small>
+                        <strong></strong>
+                    </span>
+                `;
+                button.querySelector("small").textContent = card.label;
+                button.querySelector("strong").textContent = card.value;
+                button.addEventListener("click", () => flipCard(button, card));
+                board.appendChild(button);
+            });
+        }
+
+        function flipCard(button, card) {
+            if (locked || button.classList.contains("is-flipped") || button.classList.contains("is-matched")) {
+                return;
+            }
+            button.classList.add("is-flipped");
+            playSound("flip");
+            selected.push({button, card});
+            if (selected.length === 2) {
+                checkSelectedPair();
+            }
+        }
+
+        function checkSelectedPair() {
+            moves += 1;
+            const [first, second] = selected;
+            const isMatch = first.card.pairId === second.card.pairId && first.card.kind !== second.card.kind;
+            if (isMatch) {
+                combo += 1;
+                matchedPairs += 1;
+                const gained = 100 + combo * 20 + Math.max(0, deck.length - moves) * 3;
+                score += gained;
+                first.button.classList.add("is-matched");
+                second.button.classList.add("is-matched");
+                selected = [];
+                playSound("match");
+                renderStats();
+                if (matchedPairs === deck.length / 2) {
+                    window.setTimeout(finishGame, 420);
+                }
+                return;
+            }
+
+            combo = 0;
+            locked = true;
+            first.button.classList.add("is-wrong");
+            second.button.classList.add("is-wrong");
+            playSound("miss");
+            renderStats();
+            window.setTimeout(() => {
+                first.button.classList.remove("is-flipped", "is-wrong");
+                second.button.classList.remove("is-flipped", "is-wrong");
+                selected = [];
+                locked = false;
+            }, 780);
+        }
+
+        function finishGame() {
+            const pairCount = deck.length / 2;
+            const perfectMoves = pairCount;
+            const bonus = Math.max(0, perfectMoves * 2 - moves) * 25;
+            score += bonus;
+            renderStats();
+            summary.textContent = `B\u1ea1n gh\u00e9p ${pairCount} c\u1eb7p trong ${moves} l\u01b0\u1ee3t v\u00e0 nh\u1eadn ${score} \u0111i\u1ec3m.`;
+            result.hidden = false;
+            playSound("finish");
+            saveGameScore();
+        }
+
+        function renderStats() {
+            scoreElement.textContent = String(score);
+            movesElement.textContent = String(moves);
+            comboElement.textContent = String(combo);
+        }
+
+        async function saveGameScore() {
+            if (scoreSaved || score <= 0) {
+                return;
+            }
+            scoreSaved = true;
+            const token = document.querySelector("meta[name='_csrf']")?.content;
+            const header = document.querySelector("meta[name='_csrf_header']")?.content;
+            const headers = {
+                "Content-Type": "application/json",
+                Accept: "application/json"
+            };
+            if (token && header) {
+                headers[header] = token;
+            }
+
+            try {
+                const response = await fetch("/api/games/score", {
+                    method: "POST",
+                    headers,
+                    credentials: "same-origin",
+                    body: JSON.stringify({score})
+                });
+                if (!response.ok) {
+                    throw new Error("Score save failed");
+                }
+                const payload = await response.json();
+                const totalScore = Number(payload?.totalScore);
+                const clientScore = document.querySelector("[data-client-score]");
+                if (clientScore && Number.isFinite(totalScore)) {
+                    clientScore.textContent = String(totalScore);
+                }
+            } catch (error) {
+                scoreSaved = false;
+            }
+        }
+
+        function readSoundPreference() {
+            try {
+                return window.localStorage.getItem("flipSound") !== "off";
+            } catch (error) {
+                return true;
+            }
+        }
+
+        function saveSoundPreference(enabled) {
+            try {
+                window.localStorage.setItem("flipSound", enabled ? "on" : "off");
+            } catch (error) {
+                // Sound still works for this page even if the browser blocks storage.
+            }
+        }
+
+        function renderSoundState() {
+            if (!soundButton) {
+                return;
+            }
+            soundButton.classList.toggle("is-muted", !soundEnabled);
+            soundButton.setAttribute("aria-pressed", String(soundEnabled));
+            if (soundIcon) {
+                soundIcon.className = soundEnabled ? "bi bi-volume-up-fill" : "bi bi-volume-mute-fill";
+            }
+        }
+
+        function playSound(name) {
+            if (!soundEnabled) {
+                return;
+            }
+            const context = getAudioContext();
+            if (!context) {
+                return;
+            }
+            if (context.state === "suspended") {
+                context.resume().catch(() => {});
+            }
+
+            const now = context.currentTime;
+            if (name === "flip") {
+                tone(context, 420, now, 0.07, "triangle", 0.014);
+                tone(context, 560, now + 0.045, 0.08, "triangle", 0.012);
+                return;
+            }
+            if (name === "match") {
+                [523, 659, 784].forEach((frequency, index) => {
+                    tone(context, frequency, now + index * 0.055, 0.12, "sine", 0.024);
+                });
+                return;
+            }
+            if (name === "miss") {
+                tone(context, 260, now, 0.09, "triangle", 0.014);
+                tone(context, 196, now + 0.075, 0.12, "triangle", 0.011);
+                return;
+            }
+            if (name === "finish") {
+                [523, 659, 784, 1046].forEach((frequency, index) => {
+                    tone(context, frequency, now + index * 0.075, 0.16, "sine", 0.026);
+                });
+                return;
+            }
+            if (name === "shuffle") {
+                softNoise(context, now, 0.16, 0.011);
+                tone(context, 330, now + 0.02, 0.09, "triangle", 0.012);
+                tone(context, 440, now + 0.1, 0.1, "triangle", 0.011);
+                return;
+            }
+            if (name === "toggle") {
+                tone(context, 660, now, 0.1, "sine", 0.018);
+            }
+        }
+
+        function getAudioContext() {
+            const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextCtor) {
+                return null;
+            }
+            if (!audioContext) {
+                audioContext = new AudioContextCtor();
+            }
+            return audioContext;
+        }
+
+        function tone(context, frequency, start, duration, type, volume) {
+            const oscillator = context.createOscillator();
+            const gain = context.createGain();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(frequency, start);
+            gain.gain.setValueAtTime(0.0001, start);
+            gain.gain.exponentialRampToValueAtTime(volume, start + 0.012);
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+            oscillator.connect(gain).connect(context.destination);
+            oscillator.start(start);
+            oscillator.stop(start + duration + 0.03);
+        }
+
+        function softNoise(context, start, duration, volume) {
+            const frameCount = Math.max(1, Math.floor(context.sampleRate * duration));
+            const buffer = context.createBuffer(1, frameCount, context.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let index = 0; index < frameCount; index += 1) {
+                const fade = 1 - index / frameCount;
+                data[index] = (Math.random() * 2 - 1) * fade;
+            }
+
+            const source = context.createBufferSource();
+            const filter = context.createBiquadFilter();
+            const gain = context.createGain();
+            source.buffer = buffer;
+            filter.type = "lowpass";
+            filter.frequency.setValueAtTime(900, start);
+            gain.gain.setValueAtTime(0.0001, start);
+            gain.gain.exponentialRampToValueAtTime(volume, start + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+            source.connect(filter).connect(gain).connect(context.destination);
+            source.start(start);
+            source.stop(start + duration + 0.02);
+        }
+
+        function textValue(value) {
+            return String(value || "").trim();
+        }
     }
 })();

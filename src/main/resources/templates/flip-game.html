@@ -3,7 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title th:text="'Learn | ' + ${set.title}">Learn | Flashcard</title>
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
+    <title th:text="'Lật thẻ | ' + ${set.title}">Lật thẻ | Flashcard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link th:href="@{/css/app.css}" rel="stylesheet">
@@ -14,7 +16,7 @@
     <div class="workspace">
         <div th:replace="~{fragments/shell :: topbar}"></div>
 
-        <main class="content study-content">
+        <main class="content study-content flip-content">
             <div class="content-heading compact-heading">
                 <div>
                     <a class="back-link" th:href="@{/sets/{id}(id=${set.id})}">
@@ -30,7 +32,7 @@
                     <i class="bi bi-stickies-fill"></i>
                     Flashcards
                 </a>
-                <a class="active" th:href="@{/sets/{id}/learn(id=${set.id})}">
+                <a th:href="@{/sets/{id}/learn(id=${set.id})}">
                     <i class="bi bi-record-circle"></i>
                     Learn
                 </a>
@@ -38,39 +40,43 @@
                     <i class="bi bi-clipboard-check-fill"></i>
                     Test
                 </a>
-                <a th:href="@{/sets/{id}/flip(id=${set.id})}">
+                <a class="active" th:href="@{/sets/{id}/flip(id=${set.id})}">
                     <i class="bi bi-grid-3x3-gap-fill"></i>
                     Lật thẻ
                 </a>
             </nav>
 
-            <section class="practice-shell" data-practice-root data-practice-mode="learn">
-                <div class="practice-progress-strip">
-                    <span class="practice-score-pill" data-practice-score>0</span>
-                    <div class="practice-track"><div data-practice-progress></div></div>
-                    <span class="practice-total-pill" data-practice-total>0</span>
-                </div>
-
-                <div class="practice-card">
-                    <div class="practice-label">Từ vựng</div>
-                    <h2 data-practice-term>Term</h2>
-
-                    <div class="practice-answer-title">Chọn đáp án</div>
-                    <div class="answer-grid" data-answer-list></div>
-
-                    <div class="practice-footer">
-                        <div class="practice-feedback" data-practice-feedback></div>
-                        <button class="btn btn-link" type="button" data-skip-question>Không biết?</button>
-                        <button class="btn btn-primary" type="button" data-next-question hidden>Câu tiếp theo</button>
+            <section class="flip-game-shell" data-flip-game-root>
+                <div class="flip-game-toolbar">
+                    <div class="flip-game-stat">
+                        <span>Điểm</span>
+                        <strong data-flip-score>0</strong>
                     </div>
+                    <div class="flip-game-stat">
+                        <span>Lượt</span>
+                        <strong data-flip-moves>0</strong>
+                    </div>
+                    <div class="flip-game-stat">
+                        <span>Combo</span>
+                        <strong data-flip-combo>0</strong>
+                    </div>
+                    <button class="btn btn-light" type="button" data-flip-restart>
+                        <i class="bi bi-shuffle"></i>
+                        Chơi lại
+                    </button>
+                    <button class="flip-sound-toggle" type="button" data-flip-sound aria-label="Âm thanh" aria-pressed="true" title="Âm thanh">
+                        <i class="bi bi-volume-up-fill"></i>
+                    </button>
                 </div>
 
-                <div class="practice-result" data-practice-result hidden>
-                    <i class="bi bi-check2-circle"></i>
-                    <h2>Hoàn thành Learn</h2>
-                    <p data-practice-summary>Bạn đã hoàn thành lượt học này.</p>
+                <div class="flip-game-board" data-flip-board></div>
+
+                <div class="practice-result flip-game-result" data-flip-result hidden>
+                    <i class="bi bi-stars"></i>
+                    <h2>Hoàn thành</h2>
+                    <p data-flip-summary>Bạn đã ghép xong các cặp thẻ.</p>
                     <div class="practice-result-actions">
-                        <button class="btn btn-primary" type="button" data-restart-practice>Học lại</button>
+                        <button class="btn btn-primary" type="button" data-flip-play-again>Chơi lại</button>
                         <a class="btn btn-light" th:href="@{/sets/{id}(id=${set.id})}">Quay về Flashcards</a>
                     </div>
                 </div>
@@ -81,7 +87,7 @@
 
 <div th:replace="~{fragments/shell :: folderModal}"></div>
 <script th:inline="javascript">
-    window.practiceQuestions = /*[[${questions}]]*/ [];
+    window.flipGameCards = /*[[${gameCards}]]*/ [];
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script th:src="@{/js/app.js}"></script>
