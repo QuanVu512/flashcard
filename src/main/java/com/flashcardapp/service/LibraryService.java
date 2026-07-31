@@ -25,6 +25,9 @@ import java.util.UUID;
 @Service
 public class LibraryService {
 
+    public static final String TEST_MODE_MEANING = "meaning";
+    public static final String TEST_MODE_TERM = "term";
+
     private final FolderRepository folderRepository;
     private final FlashcardSetRepository flashcardSetRepository;
 
@@ -153,14 +156,34 @@ public class LibraryService {
 
     @Transactional(readOnly = true)
     public List<PracticeQuestion> testQuestions(Client client, FlashcardSet set, int questionCount) {
+        return testQuestions(client, set, questionCount, TEST_MODE_MEANING);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PracticeQuestion> testQuestions(Client client, FlashcardSet set, int questionCount, String testMode) {
         List<Flashcard> cards = cardsForPractice(client, set);
         Collections.shuffle(cards);
-        return toPracticeQuestions(cards.stream().limit(questionCount).toList());
+        List<Flashcard> selectedCards = cards.stream().limit(questionCount).toList();
+        if (TEST_MODE_TERM.equals(normalizeTestMode(testMode))) {
+            return toTermPracticeQuestions(selectedCards, cards);
+        }
+        return toDefinitionPracticeQuestions(selectedCards, cards);
     }
 
     @Transactional(readOnly = true)
     public int maxPracticeQuestions(Client client, FlashcardSet set) {
         return cardsForPractice(client, set).size();
+    }
+
+    public String normalizeTestMode(String testMode) {
+        if (TEST_MODE_TERM.equalsIgnoreCase(testMode)) {
+            return TEST_MODE_TERM;
+        }
+        return TEST_MODE_MEANING;
+    }
+
+    public String testQuestionLabel(String testMode) {
+        return TEST_MODE_TERM.equals(normalizeTestMode(testMode)) ? "Nghĩa" : "Từ vựng";
     }
 
     public Map<String, List<FlashcardSet>> groupByDate(List<FlashcardSet> sets) {
@@ -250,17 +273,37 @@ public class LibraryService {
     }
 
     private List<PracticeQuestion> toPracticeQuestions(List<Flashcard> cards) {
-        List<String> allDefinitions = cards.stream()
+        return toDefinitionPracticeQuestions(cards, cards);
+    }
+
+    private List<PracticeQuestion> toDefinitionPracticeQuestions(List<Flashcard> selectedCards, List<Flashcard> allCards) {
+        List<String> allDefinitions = allCards.stream()
                 .map(Flashcard::getDefinition)
                 .filter(definition -> definition != null && !definition.isBlank())
                 .distinct()
                 .toList();
 
-        return cards.stream()
+        return selectedCards.stream()
                 .map(card -> new PracticeQuestion(
                         card.getTerm(),
                         card.getDefinition(),
                         choicesFor(card.getDefinition(), allDefinitions)
+                ))
+                .toList();
+    }
+
+    private List<PracticeQuestion> toTermPracticeQuestions(List<Flashcard> selectedCards, List<Flashcard> allCards) {
+        List<String> allTerms = allCards.stream()
+                .map(Flashcard::getTerm)
+                .filter(term -> term != null && !term.isBlank())
+                .distinct()
+                .toList();
+
+        return selectedCards.stream()
+                .map(card -> new PracticeQuestion(
+                        card.getDefinition(),
+                        card.getTerm(),
+                        choicesFor(card.getTerm(), allTerms)
                 ))
                 .toList();
     }

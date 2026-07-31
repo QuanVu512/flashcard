@@ -58,6 +58,18 @@
                                    th:value="${defaultMinutes}" required>
                             <small>Đơn vị: phút</small>
                         </label>
+                        <label>
+                            <span>Kiểu ôn tập</span>
+                            <select class="form-select" name="testMode">
+                                <option th:value="${meaningMode}" th:selected="${testMode == meaningMode}">
+                                    Ôn tập nghĩa
+                                </option>
+                                <option th:value="${termMode}" th:selected="${testMode == termMode}">
+                                    Ôn tập từ
+                                </option>
+                            </select>
+                            <small>Chọn hướng câu hỏi cho bài test</small>
+                        </label>
                     </div>
                     <div class="setup-actions">
                         <a class="btn btn-light" th:href="@{/sets/{id}(id=${set.id})}">Hủy</a>

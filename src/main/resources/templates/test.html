@@ -17,7 +17,7 @@
         <main class="content study-content">
             <div class="content-heading compact-heading">
                 <div>
-                    <a class="back-link" th:href="@{/sets/{id}/test/setup(id=${set.id})}">
+                    <a class="back-link" th:href="@{/sets/{id}/test/setup(id=${set.id}, testMode=${testMode})}">
                         <i class="bi bi-arrow-left"></i>
                         Thiết lập test
                     </a>
@@ -48,7 +48,7 @@
                 </div>
 
                 <div class="practice-card">
-                    <div class="practice-label">Từ vựng</div>
+                    <div class="practice-label" th:text="${questionLabel}">Từ vựng</div>
                     <h2 data-practice-term>Term</h2>
 
                     <div class="practice-answer-title">Chọn đáp án</div>
@@ -65,7 +65,7 @@
                     <h2>Kết quả bài test</h2>
                     <p data-practice-summary>Bạn đã hoàn thành bài test.</p>
                     <div class="practice-result-actions">
-                        <a class="btn btn-primary" th:href="@{/sets/{id}/test/setup(id=${set.id})}">Làm test mới</a>
+                        <a class="btn btn-primary" th:href="@{/sets/{id}/test/setup(id=${set.id}, testMode=${testMode})}">Làm test mới</a>
                         <a class="btn btn-light" th:href="@{/sets/{id}(id=${set.id})}">Quay về Flashcards</a>
                     </div>
                 </div>
