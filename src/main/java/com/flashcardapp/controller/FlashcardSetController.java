@@ -1,5 +1,6 @@
 package com.flashcardapp.controller;
 
+import com.flashcardapp.dto.CardLine;
 import com.flashcardapp.dto.FlashcardSetForm;
 import com.flashcardapp.entity.Client;
 import com.flashcardapp.entity.FlashcardSet;
@@ -48,9 +49,9 @@ public class FlashcardSetController {
                             BindingResult bindingResult,
                             Authentication authentication,
                             Model model) {
-        libraryService.validateCards(form).ifPresent(message -> bindingResult.reject("cards.invalid", message));
+        libraryService.ensureCardRows(form);
+        rejectInvalidCards(form, bindingResult);
         if (bindingResult.hasErrors()) {
-            libraryService.ensureCardRows(form);
             model.addAttribute("formMode", "create");
             model.addAttribute("formAction", "/sets");
             model.addAttribute("submitLabel", "Lưu");
@@ -161,9 +162,9 @@ public class FlashcardSetController {
                             BindingResult bindingResult,
                             Authentication authentication,
                             Model model) {
-        libraryService.validateCards(form).ifPresent(message -> bindingResult.reject("cards.invalid", message));
+        libraryService.ensureCardRows(form);
+        rejectInvalidCards(form, bindingResult);
         if (bindingResult.hasErrors()) {
-            libraryService.ensureCardRows(form);
             model.addAttribute("formMode", "edit");
             model.addAttribute("formAction", "/sets/" + id + "/edit");
             model.addAttribute("submitLabel", "Lưu");
@@ -182,5 +183,41 @@ public class FlashcardSetController {
         libraryService.deleteSet(client, id);
         redirectAttributes.addFlashAttribute("setDeleted", true);
         return "redirect:/library";
+    }
+
+    private void rejectInvalidCards(FlashcardSetForm form, BindingResult bindingResult) {
+        int completeCards = 0;
+        boolean hasCardErrors = false;
+        for (int index = 0; index < form.getCards().size(); index++) {
+            CardLine line = form.getCards().get(index);
+            if (line == null) {
+                continue;
+            }
+            if (line.isComplete()) {
+                completeCards++;
+                continue;
+            }
+            if (!line.hasLearningContent()) {
+                continue;
+            }
+            hasCardErrors = true;
+            if (!hasText(line.getTerm())) {
+                bindingResult.rejectValue("cards[" + index + "].term", "cards.term.required",
+                        "Vui lòng nhập từ vựng hoặc xóa thẻ này.");
+            }
+            if (!hasText(line.getDefinition())) {
+                bindingResult.rejectValue("cards[" + index + "].definition", "cards.definition.required",
+                        "Vui lòng nhập nghĩa hoặc xóa thẻ này.");
+            }
+        }
+
+        if (completeCards == 0 && !hasCardErrors) {
+            bindingResult.rejectValue("cards[0].term", "cards.term.required", "Vui lòng nhập từ vựng.");
+            bindingResult.rejectValue("cards[0].definition", "cards.definition.required", "Vui lòng nhập nghĩa.");
+        }
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }

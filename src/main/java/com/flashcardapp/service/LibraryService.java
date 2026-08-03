@@ -134,6 +134,7 @@ public class LibraryService {
             CardLine line = new CardLine();
             line.setTerm(card.getTerm());
             line.setDefinition(card.getDefinition());
+            line.setPhonetic(card.getPhonetic());
             line.setExample(card.getExample());
             return line;
         }).toList()));
@@ -143,7 +144,7 @@ public class LibraryService {
 
     public List<StudyCardView> studyCards(FlashcardSet set) {
         return set.getCards().stream()
-                .map(card -> new StudyCardView(card.getTerm(), card.getDefinition(), card.getExample()))
+                .map(card -> new StudyCardView(card.getTerm(), card.getDefinition(), card.getPhonetic(), card.getExample()))
                 .toList();
     }
 
@@ -178,7 +179,7 @@ public class LibraryService {
     @Transactional(readOnly = true)
     public List<StudyCardView> gameCards(Client client, FlashcardSet set) {
         return cardsForPractice(client, set).stream()
-                .map(card -> new StudyCardView(card.getTerm(), card.getDefinition(), card.getExample()))
+                .map(card -> new StudyCardView(card.getTerm(), card.getDefinition(), card.getPhonetic(), card.getExample()))
                 .toList();
     }
 
@@ -252,6 +253,7 @@ public class LibraryService {
             Flashcard card = new Flashcard();
             card.setTerm(line.getTerm().trim());
             card.setDefinition(line.getDefinition().trim());
+            card.setPhonetic(trimToNull(line.getPhonetic()));
             card.setExample(trimToNull(line.getExample()));
             card.setPosition(position++);
             set.addCard(card);

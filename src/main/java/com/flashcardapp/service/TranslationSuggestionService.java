@@ -23,6 +23,42 @@ public class TranslationSuggestionService {
 
     private static final String PROVIDER_AZURE = "azure";
     private static final int MAX_INPUT_LENGTH = 240;
+    private static final Map<String, TransliterationScript> TRANSLITERATION_SCRIPTS = Map.ofEntries(
+            Map.entry("ar", new TransliterationScript("ar", "Arab")),
+            Map.entry("as", new TransliterationScript("as", "Beng")),
+            Map.entry("bn", new TransliterationScript("bn", "Beng")),
+            Map.entry("be", new TransliterationScript("be", "Cyrl")),
+            Map.entry("bg", new TransliterationScript("bg", "Cyrl")),
+            Map.entry("el", new TransliterationScript("el", "Grek")),
+            Map.entry("gu", new TransliterationScript("gu", "Gujr")),
+            Map.entry("he", new TransliterationScript("he", "Hebr")),
+            Map.entry("hi", new TransliterationScript("hi", "Deva")),
+            Map.entry("ja", new TransliterationScript("ja", "Jpan")),
+            Map.entry("kn", new TransliterationScript("kn", "Knda")),
+            Map.entry("kk", new TransliterationScript("kk", "Cyrl")),
+            Map.entry("ko", new TransliterationScript("ko", "Kore")),
+            Map.entry("ky", new TransliterationScript("ky", "Cyrl")),
+            Map.entry("mk", new TransliterationScript("mk", "Cyrl")),
+            Map.entry("ml", new TransliterationScript("ml", "Mlym")),
+            Map.entry("mn", new TransliterationScript("mn", "Cyrl")),
+            Map.entry("mr", new TransliterationScript("mr", "Deva")),
+            Map.entry("or", new TransliterationScript("or", "Orya")),
+            Map.entry("pa", new TransliterationScript("pa", "Guru")),
+            Map.entry("fa", new TransliterationScript("fa", "Arab")),
+            Map.entry("ru", new TransliterationScript("ru", "Cyrl")),
+            Map.entry("sd", new TransliterationScript("sd", "Arab")),
+            Map.entry("si", new TransliterationScript("si", "Sinh")),
+            Map.entry("ta", new TransliterationScript("ta", "Taml")),
+            Map.entry("te", new TransliterationScript("te", "Telu")),
+            Map.entry("tg", new TransliterationScript("tg", "Cyrl")),
+            Map.entry("th", new TransliterationScript("th", "Thai")),
+            Map.entry("tt", new TransliterationScript("tt", "Cyrl")),
+            Map.entry("uk", new TransliterationScript("uk", "Cyrl")),
+            Map.entry("ur", new TransliterationScript("ur", "Arab")),
+            Map.entry("zh", new TransliterationScript("zh-Hans", "Hans")),
+            Map.entry("zh-hans", new TransliterationScript("zh-Hans", "Hans")),
+            Map.entry("zh-hant", new TransliterationScript("zh-Hant", "Hant"))
+    );
 
     private final RestClient restClient;
     private final String provider;
@@ -80,6 +116,9 @@ public class TranslationSuggestionService {
         TranslationSuggestionResponse response = baseResponse(normalizedInput, source, target);
         response.setDetectedLanguage(result.detectedLanguage());
         response.setSuggestions(uniqueSuggestions(result.translatedText()));
+        PhoneticSuggestionResult phoneticResult = phoneticSuggestionsFor(normalizedInput, source == null ? result.detectedLanguage() : source);
+        response.setPhoneticSuggestions(phoneticResult.suggestions());
+        response.setPhoneticMessage(phoneticResult.message());
         return response;
     }
 
@@ -120,6 +159,53 @@ public class TranslationSuggestionService {
         }
     }
 
+    private PhoneticSuggestionResult phoneticSuggestionsFor(String normalizedInput, String language) {
+        TransliterationScript script = transliterationScript(language);
+        if (script == null) {
+            String message = language == null || language.isBlank()
+                    ? "Chưa nhận diện được ngôn ngữ để gợi ý phiên âm."
+                    : "Azure chưa hỗ trợ gợi ý phiên âm cho ngôn ngữ đã nhận diện: " + language + ".";
+            return PhoneticSuggestionResult.empty(message);
+        }
+        AzureTransliterationResult result = transliterateWithAzure(normalizedInput, script);
+        List<String> suggestions = uniquePhoneticSuggestions(result.text());
+        if (suggestions.isEmpty()) {
+            String message = result.message().isBlank()
+                    ? "Azure chưa trả về phiên âm cho từ này."
+                    : result.message();
+            return PhoneticSuggestionResult.empty(message);
+        }
+        return new PhoneticSuggestionResult(suggestions, "");
+    }
+
+    private AzureTransliterationResult transliterateWithAzure(String normalizedInput, TransliterationScript script) {
+        try {
+            RestClient.RequestBodySpec request = restClient.post()
+                    .uri(uriBuilder -> uriBuilder.path("/transliterate")
+                            .queryParam("api-version", "3.0")
+                            .queryParam("language", script.language())
+                            .queryParam("fromScript", script.fromScript())
+                            .queryParam("toScript", "Latn")
+                            .build())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("Ocp-Apim-Subscription-Key", azureKey)
+                    .header("X-ClientTraceId", UUID.randomUUID().toString());
+            if (!azureRegion.isBlank() && !"global".equalsIgnoreCase(azureRegion)) {
+                request.header("Ocp-Apim-Subscription-Region", azureRegion);
+            }
+
+            List<Map<String, String>> body = List.of(Map.of("Text", normalizedInput));
+            JsonNode response = request.body(body).retrieve().body(JsonNode.class);
+            JsonNode firstResult = response == null || !response.isArray() || response.isEmpty() ? null : response.get(0);
+            String phonetic = firstResult == null ? "" : trimToEmpty(firstResult.path("text").asText(""));
+            return new AzureTransliterationResult(phonetic, "");
+        } catch (RestClientResponseException exception) {
+            return AzureTransliterationResult.empty(messageForAzureTransliterationStatus(exception.getStatusCode().value(), script));
+        } catch (Exception ignored) {
+            return AzureTransliterationResult.empty("Phiên âm đang phản hồi chậm. Thử lại sau một chút.");
+        }
+    }
+
     private String messageForAzureStatus(int statusCode) {
         if (statusCode == 401 || statusCode == 403) {
             return "Azure từ chối key hoặc region. Kiểm tra lại Key 1 và Location của Translator.";
@@ -131,6 +217,22 @@ public class TranslationSuggestionService {
             return "Azure đang lỗi tạm thời. Thử lại sau.";
         }
         return "Azure chưa trả về gợi ý. Kiểm tra cấu hình Translator.";
+    }
+
+    private String messageForAzureTransliterationStatus(int statusCode, TransliterationScript script) {
+        if (statusCode == 400) {
+            return "Azure không transliterate được script " + script.fromScript() + " của " + script.language() + ".";
+        }
+        if (statusCode == 401 || statusCode == 403) {
+            return "Azure từ chối key hoặc region khi gợi ý phiên âm.";
+        }
+        if (statusCode == 429) {
+            return "Azure đang giới hạn lượt gọi phiên âm. Thử lại sau một chút.";
+        }
+        if (statusCode >= 500) {
+            return "Azure phiên âm đang lỗi tạm thời. Thử lại sau.";
+        }
+        return "Azure chưa trả về phiên âm. Kiểm tra cấu hình Translator.";
     }
 
     private TranslationSuggestionResponse baseResponse(String inputText, String sourceLanguage, String targetLanguage) {
@@ -159,6 +261,31 @@ public class TranslationSuggestionService {
                 .sorted(Comparator.comparingInt(String::length))
                 .limit(4)
                 .toList();
+    }
+
+    private List<String> uniquePhoneticSuggestions(String phoneticText) {
+        String normalizedText = trimToEmpty(phoneticText).replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+        if (normalizedText.isBlank()) {
+            return List.of();
+        }
+        return List.of(normalizedText);
+    }
+
+    private TransliterationScript transliterationScript(String language) {
+        if (language == null || language.isBlank()) {
+            return null;
+        }
+        String key = language.trim().toLowerCase(Locale.ROOT);
+        if (key.startsWith("zh-hant")) {
+            return TRANSLITERATION_SCRIPTS.get("zh-hant");
+        }
+        if (key.startsWith("zh")) {
+            return TRANSLITERATION_SCRIPTS.get("zh-hans");
+        }
+        if (key.startsWith("sr-cyrl")) {
+            return new TransliterationScript("sr-Cyrl", "Cyrl");
+        }
+        return TRANSLITERATION_SCRIPTS.get(key);
     }
 
     private String normalizeProvider(String value) {
@@ -203,5 +330,20 @@ public class TranslationSuggestionService {
         static AzureTranslationResult empty(String message) {
             return new AzureTranslationResult("", null, message);
         }
+    }
+
+    private record AzureTransliterationResult(String text, String message) {
+        static AzureTransliterationResult empty(String message) {
+            return new AzureTransliterationResult("", message);
+        }
+    }
+
+    private record PhoneticSuggestionResult(List<String> suggestions, String message) {
+        static PhoneticSuggestionResult empty(String message) {
+            return new PhoneticSuggestionResult(List.of(), message);
+        }
+    }
+
+    private record TransliterationScript(String language, String fromScript) {
     }
 }

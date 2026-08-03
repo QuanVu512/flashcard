@@ -26,6 +26,9 @@ public class Flashcard {
     @Column(nullable = false, length = 800)
     private String definition;
 
+    @Column(length = 240)
+    private String phonetic;
+
     @Column(length = 800)
     private String example;
 
@@ -54,6 +57,14 @@ public class Flashcard {
 
     public void setDefinition(String definition) {
         this.definition = definition;
+    }
+
+    public String getPhonetic() {
+        return phonetic;
+    }
+
+    public void setPhonetic(String phonetic) {
+        this.phonetic = phonetic;
     }
 
     public String getExample() {

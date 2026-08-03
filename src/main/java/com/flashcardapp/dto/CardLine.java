@@ -4,6 +4,7 @@ public class CardLine {
 
     private String term;
     private String definition;
+    private String phonetic;
     private String example;
 
     public String getTerm() {
@@ -22,6 +23,14 @@ public class CardLine {
         this.definition = definition;
     }
 
+    public String getPhonetic() {
+        return phonetic;
+    }
+
+    public void setPhonetic(String phonetic) {
+        this.phonetic = phonetic;
+    }
+
     public String getExample() {
         return example;
     }
@@ -31,7 +40,7 @@ public class CardLine {
     }
 
     public boolean hasLearningContent() {
-        return hasText(term) || hasText(definition) || hasText(example);
+        return hasText(term) || hasText(definition) || hasText(phonetic) || hasText(example);
     }
 
     public boolean isComplete() {

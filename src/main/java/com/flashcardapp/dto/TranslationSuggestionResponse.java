@@ -11,7 +11,9 @@ public class TranslationSuggestionResponse {
     private String sourceLanguage;
     private String detectedLanguage;
     private String targetLanguage;
+    private String phoneticMessage;
     private List<String> suggestions = new ArrayList<>();
+    private List<String> phoneticSuggestions = new ArrayList<>();
 
     public static TranslationSuggestionResponse disabled(String message) {
         TranslationSuggestionResponse response = new TranslationSuggestionResponse();
@@ -68,11 +70,27 @@ public class TranslationSuggestionResponse {
         this.targetLanguage = targetLanguage;
     }
 
+    public String getPhoneticMessage() {
+        return phoneticMessage;
+    }
+
+    public void setPhoneticMessage(String phoneticMessage) {
+        this.phoneticMessage = phoneticMessage;
+    }
+
     public List<String> getSuggestions() {
         return suggestions;
     }
 
     public void setSuggestions(List<String> suggestions) {
         this.suggestions = suggestions == null ? new ArrayList<>() : suggestions;
+    }
+
+    public List<String> getPhoneticSuggestions() {
+        return phoneticSuggestions;
+    }
+
+    public void setPhoneticSuggestions(List<String> phoneticSuggestions) {
+        this.phoneticSuggestions = phoneticSuggestions == null ? new ArrayList<>() : phoneticSuggestions;
     }
 }

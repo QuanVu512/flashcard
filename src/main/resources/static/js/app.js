@@ -54,6 +54,9 @@
 
     function cardInputKind(input) {
         const source = `${input.dataset[REAL_CARD_NAME] || ""} ${input.id || ""}`;
+        if (source.includes("phonetic")) {
+            return "phonetic";
+        }
         if (source.includes("definition")) {
             return "definition";
         }
@@ -83,6 +86,10 @@
                     <div>
                         <label class="form-label" for="card-term-${index}">Từ vựng</label>
                         <input class="form-control" id="card-term-${index}" data-card-input-name="cards[${index}].term" data-translation-term autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" placeholder="Nhập từ vựng">
+                    </div>
+                    <div>
+                        <label class="form-label" for="card-phonetic-${index}">Phiên âm</label>
+                        <input class="form-control" id="card-phonetic-${index}" data-card-input-name="cards[${index}].phonetic" data-translation-phonetic autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true" placeholder="Nhập phiên âm nếu có">
                     </div>
                     <div>
                         <label class="form-label" for="card-definition-${index}">Nghĩa</label>
@@ -119,6 +126,9 @@
                 if (input.id.includes("term")) {
                     input.id = `card-term-${index}`;
                 }
+                if (input.id.includes("phonetic")) {
+                    input.id = `card-phonetic-${index}`;
+                }
                 if (input.id.includes("definition")) {
                     input.id = `card-definition-${index}`;
                 }
@@ -130,6 +140,9 @@
                 const text = label.textContent.trim();
                 if (text === "Từ vựng") {
                     label.setAttribute("for", `card-term-${index}`);
+                }
+                if (text === "Phiên âm") {
+                    label.setAttribute("for", `card-phonetic-${index}`);
                 }
                 if (text === "Nghĩa") {
                     label.setAttribute("for", `card-definition-${index}`);
@@ -177,7 +190,14 @@
     });
 
     document.querySelectorAll(".set-form").forEach((form) => {
-        form.addEventListener("submit", () => restoreCardInputNames(form));
+        form.addEventListener("submit", (event) => {
+            clearCardValidationErrors(form);
+            if (!validateCardRows(form)) {
+                event.preventDefault();
+                return;
+            }
+            restoreCardInputNames(form);
+        });
     });
 
     setupFlashcards();
@@ -185,6 +205,79 @@
     setupFlipGame();
     setupCardEntryFields();
     setupTranslationSuggestions();
+
+    function clearCardValidationErrors(form) {
+        form.querySelectorAll(".client-card-error").forEach((error) => error.remove());
+        form.querySelectorAll(".is-invalid").forEach((input) => input.classList.remove("is-invalid"));
+    }
+
+    function clearInputValidationError(input) {
+        input.classList.remove("is-invalid");
+        input.parentElement?.querySelectorAll(".client-card-error").forEach((error) => error.remove());
+    }
+
+    function validateCardRows(form) {
+        if (!cardRows || !form.contains(cardRows)) {
+            return true;
+        }
+
+        let completeCards = 0;
+        let firstInvalid = null;
+        const rows = Array.from(cardRows.querySelectorAll("[data-card-row]"));
+        rows.forEach((row) => {
+            const term = row.querySelector("[data-translation-term]");
+            const phonetic = row.querySelector("[data-translation-phonetic]");
+            const definition = row.querySelector("[data-translation-definition]");
+            const example = row.querySelector("input[id*='example']");
+            const hasContent = [term, phonetic, definition, example].some((input) => input?.value.trim());
+            const hasTerm = Boolean(term?.value.trim());
+            const hasDefinition = Boolean(definition?.value.trim());
+
+            if (hasTerm && hasDefinition) {
+                completeCards += 1;
+                return;
+            }
+            if (!hasContent) {
+                return;
+            }
+
+            if (!hasTerm) {
+                firstInvalid = firstInvalid || term;
+                showCardValidationError(term, "Vui lòng nhập từ vựng hoặc xóa thẻ này.");
+            }
+            if (!hasDefinition) {
+                firstInvalid = firstInvalid || definition;
+                showCardValidationError(definition, "Vui lòng nhập nghĩa hoặc xóa thẻ này.");
+            }
+        });
+
+        if (completeCards === 0 && !firstInvalid) {
+            const firstRow = rows[0];
+            const firstTerm = firstRow?.querySelector("[data-translation-term]");
+            const firstDefinition = firstRow?.querySelector("[data-translation-definition]");
+            firstInvalid = firstTerm || firstDefinition;
+            showCardValidationError(firstTerm, "Vui lòng nhập từ vựng.");
+            showCardValidationError(firstDefinition, "Vui lòng nhập nghĩa.");
+        }
+
+        if (firstInvalid) {
+            firstInvalid.focus();
+            firstInvalid.scrollIntoView({behavior: "smooth", block: "center"});
+            return false;
+        }
+        return true;
+    }
+
+    function showCardValidationError(input, message) {
+        if (!input) {
+            return;
+        }
+        input.classList.add("is-invalid");
+        const error = document.createElement("div");
+        error.className = "field-error client-card-error";
+        error.textContent = message;
+        input.insertAdjacentElement("afterend", error);
+    }
 
     function setupCardEntryFields() {
         if (!cardRows) {
@@ -223,24 +316,32 @@
             return row.querySelector("[data-translation-definition], input[name$='.definition']");
         }
 
+        function phoneticInput(row) {
+            return row.querySelector("[data-translation-phonetic], input[name$='.phonetic']");
+        }
+
         function configureRow(row) {
             const term = termInput(row);
             const definition = definitionInput(row);
+            const phonetic = phoneticInput(row);
             if (term) {
                 term.setAttribute("data-translation-term", "");
             }
+            if (phonetic) {
+                phonetic.setAttribute("data-translation-phonetic", "");
+                suggestionBox(phonetic);
+            }
             if (definition) {
                 definition.setAttribute("data-translation-definition", "");
-                suggestionBox(row);
+                suggestionBox(definition);
             }
         }
 
-        function suggestionBox(row) {
-            const definition = definitionInput(row);
-            if (!definition) {
+        function suggestionBox(input) {
+            if (!input) {
                 return null;
             }
-            const field = definition.parentElement;
+            const field = input.parentElement;
             field.classList.add("translation-field");
             let box = field.querySelector("[data-translation-suggestions]");
             if (!box) {
@@ -248,21 +349,26 @@
                 box.className = "translation-suggestions";
                 box.setAttribute("data-translation-suggestions", "");
                 box.hidden = true;
-                definition.insertAdjacentElement("afterend", box);
+                input.insertAdjacentElement("afterend", box);
             }
             return box;
         }
 
-        function hideSuggestions(row) {
-            const box = suggestionBox(row);
+        function hideSuggestionBox(input) {
+            const box = suggestionBox(input);
             if (box) {
                 box.hidden = true;
                 box.innerHTML = "";
             }
         }
 
-        function showState(row, message, autoHide = false) {
-            const box = suggestionBox(row);
+        function hideSuggestions(row) {
+            hideSuggestionBox(definitionInput(row));
+            hideSuggestionBox(phoneticInput(row));
+        }
+
+        function showStateForInput(input, message, autoHide = false) {
+            const box = suggestionBox(input);
             if (!box) {
                 return;
             }
@@ -275,39 +381,69 @@
             if (autoHide) {
                 window.setTimeout(() => {
                     if (box.contains(state)) {
-                        hideSuggestions(row);
+                        hideSuggestionBox(input);
                     }
-                }, 2600);
+                }, 3600);
             }
         }
 
+        function showState(row, message, autoHide = false) {
+            showStateForInput(definitionInput(row), message, autoHide);
+        }
+
+        function showPhoneticState(row, message, autoHide = false) {
+            showStateForInput(phoneticInput(row), message, autoHide);
+        }
+
         function renderSuggestions(row, payload) {
-            const box = suggestionBox(row);
             const definition = definitionInput(row);
-            if (!box || !definition) {
+            const phonetic = phoneticInput(row);
+            if (!definition) {
                 return;
             }
 
             const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
+            const phoneticSuggestions = Array.isArray(payload?.phoneticSuggestions) ? payload.phoneticSuggestions : [];
             if (!payload?.enabled) {
                 showState(row, payload?.message || "Chưa bật gợi ý dịch.", true);
+                showPhoneticState(row, payload?.message || "Chưa bật gợi ý phiên âm.", true);
                 return;
             }
-            if (!suggestions.length) {
+            if (!suggestions.length && !phoneticSuggestions.length) {
                 if (payload?.message) {
                     showState(row, payload.message, true);
+                    showPhoneticState(row, payload?.phoneticMessage || "Chưa có gợi ý phiên âm.", true);
                     return;
                 }
                 hideSuggestions(row);
                 return;
             }
 
+            renderSuggestionList(
+                definition,
+                suggestions,
+                payload.detectedLanguage
+                    ? `Gợi ý nghĩa (${payload.detectedLanguage} -> ${payload.targetLanguage})`
+                    : "Gợi ý nghĩa",
+                row
+            );
+            renderSuggestionList(phonetic, phoneticSuggestions, "Gợi ý phiên âm", row);
+            if (!phoneticSuggestions.length && payload?.phoneticMessage && phonetic && !phonetic.value.trim()) {
+                showPhoneticState(row, payload.phoneticMessage, true);
+            }
+        }
+
+        function renderSuggestionList(input, suggestions, title, row) {
+            const box = suggestionBox(input);
+            if (!box || !input || !suggestions.length) {
+                hideSuggestionBox(input);
+                return;
+            }
+
             box.innerHTML = "";
             const label = document.createElement("div");
             label.className = "translation-suggestion-label";
-            label.textContent = payload.detectedLanguage
-                ? `Gợi ý nghĩa (${payload.detectedLanguage} -> ${payload.targetLanguage})`
-                : "Gợi ý nghĩa";
+            label.textContent = title;
             box.appendChild(label);
 
             suggestions.forEach((suggestion) => {
@@ -316,10 +452,9 @@
                 button.className = "translation-suggestion-item";
                 button.textContent = suggestion;
                 button.addEventListener("click", () => {
-                    definition.value = suggestion;
-                    definition.dispatchEvent(new Event("input", {bubbles: true}));
-                    hideSuggestions(row);
-                    definition.focus();
+                    input.value = suggestion;
+                    hideSuggestionBox(input);
+                    input.focus();
                 });
                 box.appendChild(button);
             });
@@ -349,6 +484,7 @@
             const token = Symbol("translation-request");
             requestTokens.set(row, token);
             showState(row, "Đang tìm nghĩa...");
+            showPhoneticState(row, "Đang tìm phiên âm...");
 
             try {
                 let payload = await requestSuggestion(text);
@@ -358,6 +494,7 @@
                 }
                 if (!payload) {
                     showState(row, "Dịch đang phản hồi chậm. Thử lại sau một chút.", true);
+                    showPhoneticState(row, "Phiên âm đang phản hồi chậm. Thử lại sau một chút.", true);
                     return;
                 }
                 if (requestTokens.get(row) === token) {
@@ -366,6 +503,7 @@
             } catch (error) {
                 if (requestTokens.get(row) === token) {
                     showState(row, "Dịch đang phản hồi chậm. Thử lại sau một chút.", true);
+                    showPhoneticState(row, "Phiên âm đang phản hồi chậm. Thử lại sau một chút.", true);
                 }
             }
         }
@@ -374,11 +512,13 @@
             configureRow(row);
             const term = termInput(row);
             const definition = definitionInput(row);
+            const phonetic = phoneticInput(row);
             if (!term || !definition) {
                 return;
             }
             const text = term.value.trim();
-            if (definition.value.trim() && document.activeElement !== term) {
+            const hasSuggestionsTarget = !definition.value.trim() || (phonetic && !phonetic.value.trim());
+            if (!hasSuggestionsTarget && document.activeElement !== term) {
                 hideSuggestions(row);
                 return;
             }
@@ -398,12 +538,13 @@
             if (!row) {
                 return;
             }
+            clearInputValidationError(event.target);
             configureRow(row);
             if (event.target === termInput(row)) {
                 scheduleSuggestion(row);
             }
-            if (event.target === definitionInput(row)) {
-                hideSuggestions(row);
+            if (event.target === definitionInput(row) || event.target === phoneticInput(row)) {
+                hideSuggestionBox(event.target);
             }
         });
         cardRows.addEventListener("focusin", (event) => {
@@ -432,6 +573,8 @@
 
         let cards = Array.isArray(window.studyCards) ? [...window.studyCards] : [];
         const term = document.querySelector("[data-card-term]");
+        const phonetic = document.querySelector("[data-card-phonetic]");
+        const phoneticWrap = document.querySelector("[data-card-phonetic-wrap]");
         const definition = document.querySelector("[data-card-definition]");
         const example = document.querySelector("[data-card-example]");
         const exampleWrap = document.querySelector("[data-card-example-wrap]");
@@ -447,7 +590,9 @@
         function renderStudyCard() {
             if (!cards.length) {
                 term.textContent = "Chưa có thẻ";
+                phoneticWrap.hidden = true;
                 definition.textContent = "Hãy thêm flashcard để bắt đầu học";
+                exampleWrap.hidden = true;
                 counter.textContent = "0 / 0";
                 progressFill.style.width = "0";
                 prevButton.disabled = true;
@@ -457,6 +602,12 @@
 
             const card = cards[currentIndex];
             term.textContent = card.term;
+            if (card.phonetic) {
+                phonetic.textContent = card.phonetic;
+                phoneticWrap.hidden = false;
+            } else {
+                phoneticWrap.hidden = true;
+            }
             definition.textContent = card.definition;
             if (card.example) {
                 example.textContent = card.example;

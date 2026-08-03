@@ -67,13 +67,22 @@
                             <div class="term-fields">
                                 <div>
                                     <label class="form-label" th:for="|card-term-${stat.index}|">Từ vựng</label>
-                                    <input class="form-control" th:id="|card-term-${stat.index}|" data-translation-term autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none"
+                                    <input class="form-control" th:id="|card-term-${stat.index}|" data-translation-term autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" th:errorclass="is-invalid"
                                            th:field="*{cards[__${stat.index}__].term}" placeholder="Nhập từ vựng">
+                                    <div class="field-error" th:if="${#fields.hasErrors('cards[' + stat.index + '].term')}"
+                                         th:errors="*{cards[__${stat.index}__].term}"></div>
+                                </div>
+                                <div>
+                                    <label class="form-label" th:for="|card-phonetic-${stat.index}|">Phiên âm</label>
+                                    <input class="form-control" th:id="|card-phonetic-${stat.index}|" data-translation-phonetic autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none"
+                                           th:field="*{cards[__${stat.index}__].phonetic}" placeholder="Nhập phiên âm nếu có">
                                 </div>
                                 <div>
                                     <label class="form-label" th:for="|card-definition-${stat.index}|">Nghĩa</label>
-                                    <input class="form-control" th:id="|card-definition-${stat.index}|" data-translation-definition autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none"
+                                    <input class="form-control" th:id="|card-definition-${stat.index}|" data-translation-definition autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" aria-autocomplete="none" th:errorclass="is-invalid"
                                            th:field="*{cards[__${stat.index}__].definition}" placeholder="Nhập nghĩa">
+                                    <div class="field-error" th:if="${#fields.hasErrors('cards[' + stat.index + '].definition')}"
+                                         th:errors="*{cards[__${stat.index}__].definition}"></div>
                                 </div>
                                 <div>
                                     <label class="form-label" th:for="|card-example-${stat.index}|">Ví dụ</label>

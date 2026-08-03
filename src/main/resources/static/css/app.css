@@ -665,7 +665,7 @@ a {
 .term-fields {
     display: grid;
     gap: 14px;
-    grid-template-columns: minmax(160px, 0.9fr) minmax(180px, 1fr) minmax(180px, 1fr);
+    grid-template-columns: minmax(150px, 0.9fr) minmax(140px, 0.75fr) minmax(170px, 1fr) minmax(170px, 1fr);
 }
 
 .remove-row {
@@ -798,6 +798,15 @@ a {
     font-weight: 900;
     line-height: 1.12;
     max-width: 900px;
+    overflow-wrap: anywhere;
+}
+
+.flashcard-phonetic {
+    color: var(--muted);
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    font-weight: 800;
+    line-height: 1.25;
+    max-width: 760px;
     overflow-wrap: anywhere;
 }
 
