@@ -624,26 +624,33 @@
         }
 
         function flipCard() {
+            if (!cards.length) {
+                return;
+            }
             flipped = !flipped;
             renderStudyCard();
         }
 
-        stage.addEventListener("click", flipCard);
-        flipButton.addEventListener("click", flipCard);
-        prevButton.addEventListener("click", () => {
+        function previousCard() {
             if (currentIndex > 0) {
                 currentIndex -= 1;
                 flipped = false;
                 renderStudyCard();
             }
-        });
-        nextButton.addEventListener("click", () => {
+        }
+
+        function nextCard() {
             if (currentIndex < cards.length - 1) {
                 currentIndex += 1;
                 flipped = false;
                 renderStudyCard();
             }
-        });
+        }
+
+        stage.addEventListener("click", flipCard);
+        flipButton.addEventListener("click", flipCard);
+        prevButton.addEventListener("click", previousCard);
+        nextButton.addEventListener("click", nextCard);
         if (shuffleButton) {
             shuffleButton.addEventListener("click", () => {
                 cards = shuffle([...cards]);
@@ -653,22 +660,34 @@
             });
         }
         document.addEventListener("keydown", (event) => {
-            if (event.target.closest("input, textarea, select, button, a")) {
+            if (event.altKey || event.ctrlKey || event.metaKey || isTypingTarget(event.target)) {
                 return;
             }
-            if (event.key === " " || event.key === "Enter") {
+            if (event.key === " ") {
                 event.preventDefault();
+                if (event.repeat) {
+                    return;
+                }
                 flipCard();
             }
             if (event.key === "ArrowLeft") {
-                prevButton.click();
+                event.preventDefault();
+                previousCard();
             }
             if (event.key === "ArrowRight") {
-                nextButton.click();
+                event.preventDefault();
+                nextCard();
             }
         });
 
         renderStudyCard();
+    }
+
+    function isTypingTarget(target) {
+        if (!(target instanceof Element)) {
+            return false;
+        }
+        return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
     }
 
     function setupPractice() {
