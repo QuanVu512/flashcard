@@ -912,6 +912,28 @@ a {
     gap: 24px;
 }
 
+.learn-toolbar {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.learn-mode-form label {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    margin: 0;
+}
+
+.learn-mode-form span {
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-weight: 900;
+}
+
+.learn-mode-form .form-select {
+    min-width: 180px;
+}
+
 .practice-progress-strip,
 .test-status-row {
     align-items: center;
@@ -956,6 +978,26 @@ a {
     height: 100%;
     transition: width 180ms ease;
     width: 0;
+}
+
+.practice-bonus-note {
+    align-items: center;
+    background: #fff9dc;
+    border: 1px solid rgba(255, 205, 31, 0.58);
+    border-radius: 8px;
+    color: #6b5600;
+    display: flex;
+    font-weight: 900;
+    gap: 10px;
+    padding: 12px 14px;
+}
+
+.practice-bonus-note[hidden] {
+    display: none;
+}
+
+.practice-bonus-note i {
+    color: var(--yellow);
 }
 
 .practice-card,
@@ -1412,6 +1454,22 @@ a {
     .answer-grid,
     .setup-grid {
         grid-template-columns: 1fr;
+    }
+
+    .learn-toolbar,
+    .learn-mode-form,
+    .learn-mode-form label,
+    .learn-mode-form .form-select {
+        width: 100%;
+    }
+
+    .learn-toolbar {
+        justify-content: stretch;
+    }
+
+    .learn-mode-form label {
+        align-items: stretch;
+        flex-direction: column;
     }
 
     .flip-game-board {

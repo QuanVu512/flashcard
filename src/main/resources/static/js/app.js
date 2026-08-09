@@ -697,8 +697,11 @@
         }
 
         const mode = root.dataset.practiceMode || "learn";
-        const questions = Array.isArray(window.practiceQuestions) ? [...window.practiceQuestions] : [];
+        const isLearnMode = mode === "learn";
+        const originalQuestions = Array.isArray(window.practiceQuestions) ? [...window.practiceQuestions] : [];
+        let questions = [...originalQuestions];
         const term = root.querySelector("[data-practice-term]");
+        const practiceLabel = root.querySelector("[data-practice-label]");
         const answerList = root.querySelector("[data-answer-list]");
         const feedback = root.querySelector("[data-practice-feedback]");
         const progress = root.querySelector("[data-practice-progress]");
@@ -711,13 +714,25 @@
         const summary = root.querySelector("[data-practice-summary]");
         const restartButton = root.querySelector("[data-restart-practice]");
         const timerElement = root.querySelector("[data-test-timer]");
+        const modeSelect = root.querySelector("[data-learn-mode-select]");
+        const bonusNote = root.querySelector("[data-bonus-note]");
+        const bonusNoteText = root.querySelector("[data-bonus-note-text]");
+        const baseQuestionLabel = practiceLabel?.textContent.trim() || "Từ vựng";
         let index = 0;
         let score = 0;
+        let mainScore = 0;
+        let bonusScore = 0;
         let answered = false;
         let timerId = null;
+        let round = "main";
+        let missedQuestions = [];
+        let missedQuestionKeys = new Set();
 
         if (totalElement) {
             totalElement.textContent = String(questions.length);
+        }
+        if (modeSelect) {
+            modeSelect.addEventListener("change", () => modeSelect.form?.submit());
         }
 
         function renderQuestion() {
@@ -728,6 +743,9 @@
             answered = false;
             const question = questions[index];
             term.textContent = question.term;
+            if (practiceLabel) {
+                practiceLabel.textContent = round === "bonus" ? `Bonus · ${baseQuestionLabel}` : baseQuestionLabel;
+            }
             feedback.textContent = "";
             feedback.className = "practice-feedback";
             nextButton.hidden = true;
@@ -743,7 +761,8 @@
             progress.style.width = `${(index / questions.length) * 100}%`;
 
             answerList.innerHTML = "";
-            question.choices.forEach((choice, choiceIndex) => {
+            const choices = round === "bonus" ? shuffle([...question.choices]) : question.choices;
+            choices.forEach((choice, choiceIndex) => {
                 const button = document.createElement("button");
                 button.type = "button";
                 button.className = "answer-option";
@@ -774,6 +793,7 @@
             });
             if (!isCorrect) {
                 button.classList.add("is-wrong");
+                noteMissedQuestion(question);
             }
 
             feedback.textContent = isCorrect ? "Chính xác" : `Đáp án đúng: ${question.correctAnswer}`;
@@ -786,6 +806,11 @@
             if (scoreElement) {
                 scoreElement.textContent = String(score);
             }
+            if (round === "main") {
+                mainScore = score;
+            } else {
+                bonusScore = score;
+            }
         }
 
         function skipQuestion() {
@@ -794,6 +819,7 @@
             }
             const question = questions[index];
             answered = true;
+            noteMissedQuestion(question);
             answerList.querySelectorAll(".answer-option").forEach((option) => {
                 const optionText = option.querySelector("strong").textContent;
                 option.disabled = true;
@@ -823,9 +849,14 @@
             if (timerId) {
                 window.clearInterval(timerId);
             }
+            if (isLearnMode && round === "main" && missedQuestions.length) {
+                startBonusRound();
+                return;
+            }
             root.querySelector(".practice-card")?.setAttribute("hidden", "hidden");
             root.querySelector(".practice-progress-strip")?.setAttribute("hidden", "hidden");
             root.querySelector(".test-status-row")?.setAttribute("hidden", "hidden");
+            bonusNote?.setAttribute("hidden", "hidden");
             resultPanel.hidden = false;
             progress.style.width = "100%";
             const total = questions.length;
@@ -834,18 +865,64 @@
                 return;
             }
             const prefix = timedOut ? "Hết giờ. " : "";
-            summary.textContent = `${prefix}Bạn đúng ${score}/${total} câu.`;
+            if (isLearnMode && round === "bonus") {
+                summary.textContent = `Lượt chính đúng ${mainScore}/${originalQuestions.length} câu. Bonus đúng ${bonusScore}/${questions.length} câu.`;
+                return;
+            }
+            const extra = isLearnMode ? " Không cần bonus lượt này." : "";
+            summary.textContent = `${prefix}Bạn đúng ${score}/${total} câu.${extra}`;
         }
 
         function restartPractice() {
             index = 0;
             score = 0;
+            mainScore = 0;
+            bonusScore = 0;
             answered = false;
+            round = "main";
+            missedQuestions = [];
+            missedQuestionKeys = new Set();
+            questions = shuffle([...originalQuestions]);
             resultPanel.hidden = true;
+            bonusNote?.setAttribute("hidden", "hidden");
             root.querySelector(".practice-card")?.removeAttribute("hidden");
             root.querySelector(".practice-progress-strip")?.removeAttribute("hidden");
-            shuffle(questions);
+            if (totalElement) {
+                totalElement.textContent = String(questions.length);
+            }
             renderQuestion();
+        }
+
+        function startBonusRound() {
+            round = "bonus";
+            questions = shuffle([...missedQuestions]);
+            index = 0;
+            score = 0;
+            bonusScore = 0;
+            answered = false;
+            if (totalElement) {
+                totalElement.textContent = String(questions.length);
+            }
+            if (scoreElement) {
+                scoreElement.textContent = "0";
+            }
+            if (bonusNote && bonusNoteText) {
+                bonusNoteText.textContent = `Bonus: ôn lại ${questions.length} câu chưa chắc.`;
+                bonusNote.hidden = false;
+            }
+            renderQuestion();
+        }
+
+        function noteMissedQuestion(question) {
+            if (!isLearnMode || round !== "main") {
+                return;
+            }
+            const key = `${question.term}::${question.correctAnswer}`;
+            if (missedQuestionKeys.has(key)) {
+                return;
+            }
+            missedQuestionKeys.add(key);
+            missedQuestions.push(question);
         }
 
         function startTimer() {

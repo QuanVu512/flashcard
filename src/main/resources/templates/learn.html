@@ -30,7 +30,7 @@
                     <i class="bi bi-stickies-fill"></i>
                     Flashcards
                 </a>
-                <a class="active" th:href="@{/sets/{id}/learn(id=${set.id})}">
+                <a class="active" th:href="@{/sets/{id}/learn(id=${set.id}, testMode=${learnMode})}">
                     <i class="bi bi-record-circle"></i>
                     Learn
                 </a>
@@ -45,14 +45,35 @@
             </nav>
 
             <section class="practice-shell" data-practice-root data-practice-mode="learn">
+                <div class="learn-toolbar">
+                    <form class="learn-mode-form" th:action="@{/sets/{id}/learn(id=${set.id})}" method="get">
+                        <label>
+                            <span>Kiểu ôn tập</span>
+                            <select class="form-select" name="testMode" data-learn-mode-select>
+                                <option th:value="${meaningMode}" th:selected="${learnMode == meaningMode}">
+                                    Ôn tập nghĩa
+                                </option>
+                                <option th:value="${termMode}" th:selected="${learnMode == termMode}">
+                                    Ôn tập từ
+                                </option>
+                            </select>
+                        </label>
+                    </form>
+                </div>
+
                 <div class="practice-progress-strip">
                     <span class="practice-score-pill" data-practice-score>0</span>
                     <div class="practice-track"><div data-practice-progress></div></div>
                     <span class="practice-total-pill" data-practice-total>0</span>
                 </div>
 
+                <div class="practice-bonus-note" data-bonus-note hidden>
+                    <i class="bi bi-stars"></i>
+                    <span data-bonus-note-text>Bonus</span>
+                </div>
+
                 <div class="practice-card">
-                    <div class="practice-label">Từ vựng</div>
+                    <div class="practice-label" data-practice-label th:text="${questionLabel}">Từ vựng</div>
                     <h2 data-practice-term>Term</h2>
 
                     <div class="practice-answer-title">Chọn đáp án</div>

@@ -150,9 +150,17 @@ public class LibraryService {
 
     @Transactional(readOnly = true)
     public List<PracticeQuestion> learnQuestions(Client client, FlashcardSet set) {
+        return learnQuestions(client, set, TEST_MODE_MEANING);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PracticeQuestion> learnQuestions(Client client, FlashcardSet set, String testMode) {
         List<Flashcard> cards = cardsForPractice(client, set);
         Collections.shuffle(cards);
-        return toPracticeQuestions(cards);
+        if (TEST_MODE_TERM.equals(normalizeTestMode(testMode))) {
+            return toTermPracticeQuestions(cards, cards);
+        }
+        return toDefinitionPracticeQuestions(cards, cards);
     }
 
     @Transactional(readOnly = true)

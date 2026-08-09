@@ -76,13 +76,19 @@ public class FlashcardSetController {
 
     @GetMapping("/sets/{id}/learn")
     public String learn(@PathVariable UUID id,
+                        @RequestParam(defaultValue = LibraryService.TEST_MODE_MEANING) String testMode,
                         Authentication authentication,
                         Model model) {
         Client client = userService.currentClient(authentication.getName());
         FlashcardSet set = libraryService.requireSet(client, id);
+        String safeTestMode = libraryService.normalizeTestMode(testMode);
         model.addAttribute("set", set);
-        model.addAttribute("questions", libraryService.learnQuestions(client, set));
+        model.addAttribute("questions", libraryService.learnQuestions(client, set, safeTestMode));
         model.addAttribute("activeMode", "learn");
+        model.addAttribute("learnMode", safeTestMode);
+        model.addAttribute("meaningMode", LibraryService.TEST_MODE_MEANING);
+        model.addAttribute("termMode", LibraryService.TEST_MODE_TERM);
+        model.addAttribute("questionLabel", libraryService.testQuestionLabel(safeTestMode));
         return "learn";
     }
 
