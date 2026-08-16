@@ -917,6 +917,14 @@ a {
     justify-content: flex-end;
 }
 
+.learn-mode-form {
+    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
 .learn-mode-form label {
     align-items: center;
     display: flex;
@@ -1029,6 +1037,10 @@ a {
     overflow-wrap: anywhere;
 }
 
+.practice-shell[data-answer-mode="write"] .practice-card h2 {
+    margin-bottom: 44px;
+}
+
 .answer-grid {
     display: grid;
     gap: 16px;
@@ -1080,6 +1092,109 @@ a {
 .answer-option.is-wrong {
     background: #fff3f3;
     border-color: #e45b66;
+}
+
+.written-answer-panel {
+    display: grid;
+    gap: 16px;
+}
+
+.written-answer-panel[hidden] {
+    display: none;
+}
+
+.written-answer-row {
+    align-items: center;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 1fr auto;
+}
+
+.written-answer-row .form-control {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.handwriting-panel {
+    background: linear-gradient(180deg, #f8faff 0%, #f3f6ff 100%);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.handwriting-toolbar {
+    align-items: center;
+    display: flex;
+    gap: 14px;
+    justify-content: space-between;
+    padding: 14px;
+}
+
+.handwriting-title {
+    align-items: center;
+    color: var(--ink);
+    display: inline-flex;
+    font-weight: 900;
+    gap: 8px;
+}
+
+.handwriting-title i {
+    color: var(--brand);
+}
+
+.handwriting-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.handwriting-actions .form-select {
+    min-height: 40px;
+    min-width: 142px;
+}
+
+.handwriting-actions .btn {
+    align-items: center;
+    display: inline-flex;
+    gap: 7px;
+    min-height: 40px;
+}
+
+.handwriting-canvas-wrap {
+    background:
+        linear-gradient(90deg, rgba(227, 232, 245, 0.42) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(227, 232, 245, 0.42) 1px, transparent 1px),
+        #fff;
+    background-size: 36px 36px;
+    border-top: 1px solid var(--line);
+    height: 240px;
+    position: relative;
+}
+
+.handwriting-canvas-wrap canvas {
+    cursor: crosshair;
+    display: block;
+    height: 100%;
+    touch-action: none;
+    width: 100%;
+}
+
+.handwriting-status {
+    color: var(--muted);
+    font-size: 0.88rem;
+    font-weight: 800;
+    min-height: 42px;
+    padding: 10px 14px 14px;
+}
+
+.handwriting-status.is-success {
+    color: #12805c;
+}
+
+.handwriting-status.is-error {
+    color: var(--danger);
 }
 
 .practice-footer {
@@ -1468,6 +1583,23 @@ a {
     }
 
     .learn-mode-form label {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .written-answer-row,
+    .handwriting-toolbar,
+    .handwriting-actions,
+    .handwriting-actions .form-select,
+    .handwriting-actions .btn {
+        width: 100%;
+    }
+
+    .written-answer-row {
+        grid-template-columns: 1fr;
+    }
+
+    .handwriting-toolbar {
         align-items: stretch;
         flex-direction: column;
     }

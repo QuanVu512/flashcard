@@ -690,6 +690,230 @@
         return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
     }
 
+    function csrfHeaders(headers = {}) {
+        const token = document.querySelector("meta[name='_csrf']")?.content
+            || document.querySelector("input[name='_csrf']")?.value;
+        const header = document.querySelector("meta[name='_csrf_header']")?.content || "X-CSRF-TOKEN";
+        if (token) {
+            headers[header] = token;
+        }
+        return headers;
+    }
+
+    function setupHandwritingCanvas(root, targetInput) {
+        const canvas = root.querySelector("[data-handwriting-canvas]");
+        const clearButton = root.querySelector("[data-clear-handwriting]");
+        const recognizeButton = root.querySelector("[data-recognize-handwriting]");
+        const languageSelect = root.querySelector("[data-handwriting-language]");
+        const status = root.querySelector("[data-handwriting-status]");
+        if (!canvas || !targetInput) {
+            return {
+                reset() {},
+                lock() {},
+                unlock() {}
+            };
+        }
+
+        const context = canvas.getContext("2d");
+        let drawing = false;
+        let hasInk = false;
+        let lastPoint = null;
+        let locked = false;
+
+        function renderStatus(message, tone = "") {
+            if (!status) {
+                return;
+            }
+            status.textContent = message;
+            status.className = "handwriting-status";
+            if (tone) {
+                status.classList.add(`is-${tone}`);
+            }
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            if (!rect.width || !rect.height) {
+                return;
+            }
+            const ratio = Math.max(1, window.devicePixelRatio || 1);
+            canvas.width = Math.floor(rect.width * ratio);
+            canvas.height = Math.floor(rect.height * ratio);
+            context.setTransform(ratio, 0, 0, ratio, 0, 0);
+            clearCanvas(false);
+        }
+
+        function clearCanvas(showMessage = true) {
+            context.save();
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            context.fillStyle = "#fff";
+            context.fillRect(0, 0, canvas.width || 1, canvas.height || 1);
+            context.restore();
+            hasInk = false;
+            lastPoint = null;
+            if (showMessage) {
+                renderStatus("Bảng vẽ đã được làm sạch.");
+            }
+        }
+
+        function canvasPoint(event) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top
+            };
+        }
+
+        function drawDot(point) {
+            context.beginPath();
+            context.fillStyle = "#17213f";
+            context.arc(point.x, point.y, 2.4, 0, Math.PI * 2);
+            context.fill();
+        }
+
+        function drawSegment(from, to) {
+            context.beginPath();
+            context.strokeStyle = "#17213f";
+            context.lineCap = "round";
+            context.lineJoin = "round";
+            context.lineWidth = 5;
+            context.moveTo(from.x, from.y);
+            context.lineTo(to.x, to.y);
+            context.stroke();
+        }
+
+        canvas.addEventListener("pointerdown", (event) => {
+            if (locked) {
+                return;
+            }
+            event.preventDefault();
+            drawing = true;
+            hasInk = true;
+            lastPoint = canvasPoint(event);
+            drawDot(lastPoint);
+            canvas.setPointerCapture?.(event.pointerId);
+        });
+
+        canvas.addEventListener("pointermove", (event) => {
+            if (!drawing || locked) {
+                return;
+            }
+            event.preventDefault();
+            const point = canvasPoint(event);
+            drawSegment(lastPoint, point);
+            lastPoint = point;
+        });
+
+        function stopDrawing(event) {
+            drawing = false;
+            lastPoint = null;
+            if (event?.pointerId != null) {
+                canvas.releasePointerCapture?.(event.pointerId);
+            }
+        }
+
+        canvas.addEventListener("pointerup", stopDrawing);
+        canvas.addEventListener("pointercancel", stopDrawing);
+        canvas.addEventListener("pointerleave", stopDrawing);
+
+        clearButton?.addEventListener("click", () => clearCanvas(true));
+        recognizeButton?.addEventListener("click", recognizeHandwriting);
+        window.addEventListener("resize", resizeCanvas);
+        window.requestAnimationFrame(resizeCanvas);
+
+        async function recognizeHandwriting() {
+            if (locked) {
+                return;
+            }
+            if (!hasInk) {
+                renderStatus("Hãy viết một chữ lên bảng trước đã.", "error");
+                return;
+            }
+
+            locked = true;
+            if (recognizeButton) {
+                recognizeButton.disabled = true;
+            }
+            if (clearButton) {
+                clearButton.disabled = true;
+            }
+            renderStatus("Đang nhận dạng chữ viết...");
+
+            try {
+                const response = await fetch("/api/handwriting/recognize", {
+                    method: "POST",
+                    headers: csrfHeaders({
+                        "Content-Type": "application/json",
+                        Accept: "application/json"
+                    }),
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    body: JSON.stringify({
+                        imageData: canvas.toDataURL("image/png"),
+                        language: languageSelect?.value || ""
+                    })
+                });
+                const payload = response.ok ? await response.json() : null;
+                const text = String(payload?.text || "").trim();
+                if (!payload?.enabled) {
+                    renderStatus(payload?.message || "Chưa bật nhận dạng chữ viết.", "error");
+                    return;
+                }
+                if (!text) {
+                    renderStatus(payload?.message || "Chưa nhận ra chữ nào.", "error");
+                    return;
+                }
+                targetInput.value = text;
+                targetInput.dispatchEvent(new Event("input", {bubbles: true}));
+                targetInput.focus();
+                renderStatus(payload?.message || "Đã nhận dạng xong.", "success");
+            } catch (error) {
+                renderStatus("Kiểm tra lại mạng hoặc Azure Vision key rồi thử lại.", "error");
+            } finally {
+                locked = false;
+                if (recognizeButton) {
+                    recognizeButton.disabled = false;
+                }
+                if (clearButton) {
+                    clearButton.disabled = false;
+                }
+            }
+        }
+
+        return {
+            reset() {
+                window.requestAnimationFrame(() => {
+                    resizeCanvas();
+                    renderStatus("");
+                });
+            },
+            lock() {
+                locked = true;
+                if (recognizeButton) {
+                    recognizeButton.disabled = true;
+                }
+                if (clearButton) {
+                    clearButton.disabled = true;
+                }
+                if (languageSelect) {
+                    languageSelect.disabled = true;
+                }
+            },
+            unlock() {
+                locked = false;
+                if (recognizeButton) {
+                    recognizeButton.disabled = false;
+                }
+                if (clearButton) {
+                    clearButton.disabled = false;
+                }
+                if (languageSelect) {
+                    languageSelect.disabled = false;
+                }
+            }
+        };
+    }
+
     function setupPractice() {
         const root = document.querySelector("[data-practice-root]");
         if (!root) {
@@ -702,7 +926,11 @@
         let questions = [...originalQuestions];
         const term = root.querySelector("[data-practice-term]");
         const practiceLabel = root.querySelector("[data-practice-label]");
+        const answerTitle = root.querySelector("[data-practice-answer-title]");
         const answerList = root.querySelector("[data-answer-list]");
+        const writtenPanel = root.querySelector("[data-written-answer-panel]");
+        const writtenInput = root.querySelector("[data-written-answer-input]");
+        const writtenSubmitButton = root.querySelector("[data-submit-written-answer]");
         const feedback = root.querySelector("[data-practice-feedback]");
         const progress = root.querySelector("[data-practice-progress]");
         const scoreElement = root.querySelector("[data-practice-score]");
@@ -714,10 +942,12 @@
         const summary = root.querySelector("[data-practice-summary]");
         const restartButton = root.querySelector("[data-restart-practice]");
         const timerElement = root.querySelector("[data-test-timer]");
-        const modeSelect = root.querySelector("[data-learn-mode-select]");
+        const modeSelects = root.querySelectorAll("[data-learn-mode-select]");
         const bonusNote = root.querySelector("[data-bonus-note]");
         const bonusNoteText = root.querySelector("[data-bonus-note-text]");
         const baseQuestionLabel = practiceLabel?.textContent.trim() || "Từ vựng";
+        const isWrittenMode = isLearnMode && root.dataset.answerMode === "write";
+        const handwriting = setupHandwritingCanvas(root, writtenInput);
         let index = 0;
         let score = 0;
         let mainScore = 0;
@@ -731,9 +961,9 @@
         if (totalElement) {
             totalElement.textContent = String(questions.length);
         }
-        if (modeSelect) {
+        modeSelects.forEach((modeSelect) => {
             modeSelect.addEventListener("change", () => modeSelect.form?.submit());
-        }
+        });
 
         function renderQuestion() {
             if (!questions.length) {
@@ -752,6 +982,27 @@
             if (skipButton) {
                 skipButton.hidden = false;
             }
+            if (answerTitle) {
+                answerTitle.textContent = isWrittenMode ? "Viết đáp án" : "Chọn đáp án";
+            }
+            if (answerList) {
+                answerList.hidden = isWrittenMode;
+            }
+            if (writtenPanel) {
+                writtenPanel.hidden = !isWrittenMode;
+            }
+            if (writtenInput) {
+                writtenInput.value = "";
+                writtenInput.disabled = false;
+            }
+            if (writtenSubmitButton) {
+                writtenSubmitButton.disabled = false;
+                writtenSubmitButton.hidden = !isWrittenMode;
+            }
+            if (isWrittenMode) {
+                handwriting.unlock();
+                handwriting.reset();
+            }
             if (countElement) {
                 countElement.textContent = `${index + 1} / ${questions.length}`;
             }
@@ -761,6 +1012,10 @@
             progress.style.width = `${(index / questions.length) * 100}%`;
 
             answerList.innerHTML = "";
+            if (isWrittenMode) {
+                writtenInput?.focus();
+                return;
+            }
             const choices = round === "bonus" ? shuffle([...question.choices]) : question.choices;
             choices.forEach((choice, choiceIndex) => {
                 const button = document.createElement("button");
@@ -813,6 +1068,77 @@
             }
         }
 
+        function submitWrittenAnswer() {
+            if (answered || !isWrittenMode) {
+                return;
+            }
+            const question = questions[index];
+            const answer = writtenInput?.value.trim() || "";
+            feedback.textContent = "";
+            feedback.className = "practice-feedback";
+            if (!answer) {
+                feedback.textContent = "Hãy nhập đáp án trước đã.";
+                feedback.classList.add("is-wrong");
+                writtenInput?.focus();
+                return;
+            }
+
+            answered = true;
+            const isCorrect = answerMatches(answer, question.correctAnswer);
+            if (isCorrect) {
+                score += 1;
+            } else {
+                noteMissedQuestion(question);
+            }
+
+            lockWrittenAnswer();
+            feedback.textContent = isCorrect ? "Chính xác" : `Đáp án đúng: ${question.correctAnswer}`;
+            feedback.classList.add(isCorrect ? "is-correct" : "is-wrong");
+            nextButton.textContent = index === questions.length - 1 ? "Xem kết quả" : "Câu tiếp theo";
+            nextButton.hidden = false;
+            if (skipButton) {
+                skipButton.hidden = true;
+            }
+            if (scoreElement) {
+                scoreElement.textContent = String(score);
+            }
+            if (round === "main") {
+                mainScore = score;
+            } else {
+                bonusScore = score;
+            }
+        }
+
+        function lockWrittenAnswer() {
+            if (writtenInput) {
+                writtenInput.disabled = true;
+            }
+            if (writtenSubmitButton) {
+                writtenSubmitButton.disabled = true;
+            }
+            handwriting.lock();
+        }
+
+        function answerMatches(answer, correctAnswer) {
+            const normalizedAnswer = normalizePracticeAnswer(answer);
+            return answerVariants(correctAnswer).some((variant) => normalizePracticeAnswer(variant) === normalizedAnswer);
+        }
+
+        function answerVariants(value) {
+            const text = String(value || "");
+            const variants = text.split(/[;/]|\n/).map((item) => item.trim()).filter(Boolean);
+            return variants.length ? variants : [text];
+        }
+
+        function normalizePracticeAnswer(value) {
+            return String(value || "")
+                .normalize("NFKC")
+                .trim()
+                .toLowerCase()
+                .replace(/[.,!?，。！？、]+$/g, "")
+                .replace(/\s+/g, " ");
+        }
+
         function skipQuestion() {
             if (answered) {
                 return;
@@ -820,13 +1146,17 @@
             const question = questions[index];
             answered = true;
             noteMissedQuestion(question);
-            answerList.querySelectorAll(".answer-option").forEach((option) => {
-                const optionText = option.querySelector("strong").textContent;
-                option.disabled = true;
-                if (optionText === question.correctAnswer) {
-                    option.classList.add("is-correct");
-                }
-            });
+            if (isWrittenMode) {
+                lockWrittenAnswer();
+            } else {
+                answerList.querySelectorAll(".answer-option").forEach((option) => {
+                    const optionText = option.querySelector("strong").textContent;
+                    option.disabled = true;
+                    if (optionText === question.correctAnswer) {
+                        option.classList.add("is-correct");
+                    }
+                });
+            }
             feedback.textContent = `Đáp án đúng: ${question.correctAnswer}`;
             feedback.classList.add("is-wrong");
             nextButton.textContent = index === questions.length - 1 ? "Xem kết quả" : "Câu tiếp theo";
@@ -951,6 +1281,17 @@
         }
         if (restartButton) {
             restartButton.addEventListener("click", restartPractice);
+        }
+        if (writtenSubmitButton) {
+            writtenSubmitButton.addEventListener("click", submitWrittenAnswer);
+        }
+        if (writtenInput) {
+            writtenInput.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    submitWrittenAnswer();
+                }
+            });
         }
 
         renderQuestion();
@@ -1127,15 +1468,10 @@
                 return;
             }
             scoreSaved = true;
-            const token = document.querySelector("meta[name='_csrf']")?.content;
-            const header = document.querySelector("meta[name='_csrf_header']")?.content;
-            const headers = {
+            const headers = csrfHeaders({
                 "Content-Type": "application/json",
                 Accept: "application/json"
-            };
-            if (token && header) {
-                headers[header] = token;
-            }
+            });
 
             try {
                 const response = await fetch("/api/games/score", {

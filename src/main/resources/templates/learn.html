@@ -3,6 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <title th:text="'Learn | ' + ${set.title}">Learn | Flashcard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
@@ -30,7 +32,7 @@
                     <i class="bi bi-stickies-fill"></i>
                     Flashcards
                 </a>
-                <a class="active" th:href="@{/sets/{id}/learn(id=${set.id}, testMode=${learnMode})}">
+                <a class="active" th:href="@{/sets/{id}/learn(id=${set.id}, testMode=${learnMode}, answerMode=${answerMode})}">
                     <i class="bi bi-record-circle"></i>
                     Learn
                 </a>
@@ -44,7 +46,8 @@
                 </a>
             </nav>
 
-            <section class="practice-shell" data-practice-root data-practice-mode="learn">
+            <section class="practice-shell" data-practice-root data-practice-mode="learn"
+                     th:attr="data-answer-mode=${answerMode}">
                 <div class="learn-toolbar">
                     <form class="learn-mode-form" th:action="@{/sets/{id}/learn(id=${set.id})}" method="get">
                         <label>
@@ -55,6 +58,17 @@
                                 </option>
                                 <option th:value="${termMode}" th:selected="${learnMode == termMode}">
                                     Ôn tập từ
+                                </option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Cách trả lời</span>
+                            <select class="form-select" name="answerMode" data-learn-mode-select>
+                                <option th:value="${choiceAnswerMode}" th:selected="${answerMode == choiceAnswerMode}">
+                                    Chọn đáp án
+                                </option>
+                                <option th:value="${writeAnswerMode}" th:selected="${answerMode == writeAnswerMode}">
+                                    Viết đáp án
                                 </option>
                             </select>
                         </label>
@@ -76,8 +90,49 @@
                     <div class="practice-label" data-practice-label th:text="${questionLabel}">Từ vựng</div>
                     <h2 data-practice-term>Term</h2>
 
-                    <div class="practice-answer-title">Chọn đáp án</div>
+                    <div class="practice-answer-title" data-practice-answer-title>Chọn đáp án</div>
                     <div class="answer-grid" data-answer-list></div>
+
+                    <div class="written-answer-panel" data-written-answer-panel hidden>
+                        <div class="written-answer-row">
+                            <input class="form-control" data-written-answer-input autocomplete="off"
+                                   autocapitalize="off" autocorrect="off" spellcheck="false"
+                                   placeholder="Nhập hoặc nhận dạng đáp án">
+                            <button class="btn btn-primary" type="button" data-submit-written-answer>
+                                Trả lời
+                            </button>
+                        </div>
+
+                        <div class="handwriting-panel" data-handwriting-panel>
+                            <div class="handwriting-toolbar">
+                                <div class="handwriting-title">
+                                    <i class="bi bi-pencil-square"></i>
+                                    Bảng vẽ
+                                </div>
+                                <div class="handwriting-actions">
+                                    <select class="form-select" data-handwriting-language aria-label="Ngôn ngữ nét vẽ">
+                                        <option value="">Tự nhận diện</option>
+                                        <option value="zh">Tiếng Trung</option>
+                                        <option value="en">Tiếng Anh</option>
+                                        <option value="ja">Tiếng Nhật</option>
+                                        <option value="ko">Tiếng Hàn</option>
+                                    </select>
+                                    <button class="btn btn-light" type="button" data-clear-handwriting>
+                                        <i class="bi bi-eraser"></i>
+                                        Xóa
+                                    </button>
+                                    <button class="btn btn-primary" type="button" data-recognize-handwriting>
+                                        <i class="bi bi-check2"></i>
+                                        Xong
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="handwriting-canvas-wrap">
+                                <canvas data-handwriting-canvas aria-label="Bảng vẽ chữ viết"></canvas>
+                            </div>
+                            <div class="handwriting-status" data-handwriting-status></div>
+                        </div>
+                    </div>
 
                     <div class="practice-footer">
                         <div class="practice-feedback" data-practice-feedback></div>

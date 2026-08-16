@@ -23,6 +23,9 @@ import java.util.UUID;
 @Controller
 public class FlashcardSetController {
 
+    private static final String ANSWER_MODE_CHOICE = "choice";
+    private static final String ANSWER_MODE_WRITE = "write";
+
     private final UserService userService;
     private final LibraryService libraryService;
 
@@ -77,17 +80,22 @@ public class FlashcardSetController {
     @GetMapping("/sets/{id}/learn")
     public String learn(@PathVariable UUID id,
                         @RequestParam(defaultValue = LibraryService.TEST_MODE_MEANING) String testMode,
+                        @RequestParam(defaultValue = ANSWER_MODE_CHOICE) String answerMode,
                         Authentication authentication,
                         Model model) {
         Client client = userService.currentClient(authentication.getName());
         FlashcardSet set = libraryService.requireSet(client, id);
         String safeTestMode = libraryService.normalizeTestMode(testMode);
+        String safeAnswerMode = normalizeAnswerMode(answerMode);
         model.addAttribute("set", set);
         model.addAttribute("questions", libraryService.learnQuestions(client, set, safeTestMode));
         model.addAttribute("activeMode", "learn");
         model.addAttribute("learnMode", safeTestMode);
+        model.addAttribute("answerMode", safeAnswerMode);
         model.addAttribute("meaningMode", LibraryService.TEST_MODE_MEANING);
         model.addAttribute("termMode", LibraryService.TEST_MODE_TERM);
+        model.addAttribute("choiceAnswerMode", ANSWER_MODE_CHOICE);
+        model.addAttribute("writeAnswerMode", ANSWER_MODE_WRITE);
         model.addAttribute("questionLabel", libraryService.testQuestionLabel(safeTestMode));
         return "learn";
     }
@@ -225,5 +233,9 @@ public class FlashcardSetController {
 
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    private String normalizeAnswerMode(String answerMode) {
+        return ANSWER_MODE_WRITE.equalsIgnoreCase(answerMode) ? ANSWER_MODE_WRITE : ANSWER_MODE_CHOICE;
     }
 }
