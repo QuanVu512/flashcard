@@ -13,4 +13,6 @@ public interface FolderRepository extends JpaRepository<Folder, UUID> {
     List<Folder> findByClientOrderByCreatedAtDesc(Client client);
 
     Optional<Folder> findByIdAndClient(UUID id, Client client);
+
+    long countByClient(Client client);
 }

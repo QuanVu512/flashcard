@@ -1,11 +1,10 @@
 package com.flashcardapp.controller;
 
 import com.flashcardapp.dto.RegisterRequest;
+import com.flashcardapp.helper.security.SecurityUtil;
 import com.flashcardapp.service.UserAlreadyExistsException;
 import com.flashcardapp.service.UserService;
 import jakarta.validation.Valid;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -24,16 +23,16 @@ public class AuthController {
     }
 
     @GetMapping("/login")
-    public String login(Authentication authentication) {
-        if (isLoggedIn(authentication)) {
+    public String login() {
+        if (SecurityUtil.isLoggedIn()) {
             return "redirect:/library";
         }
         return "auth/login";
     }
 
     @GetMapping("/register")
-    public String register(Model model, Authentication authentication) {
-        if (isLoggedIn(authentication)) {
+    public String register(Model model) {
+        if (SecurityUtil.isLoggedIn()) {
             return "redirect:/library";
         }
         model.addAttribute("registerRequest", new RegisterRequest());
@@ -58,11 +57,5 @@ public class AuthController {
         }
         redirectAttributes.addFlashAttribute("registered", true);
         return "redirect:/login";
-    }
-
-    private boolean isLoggedIn(Authentication authentication) {
-        return authentication != null
-                && authentication.isAuthenticated()
-                && !(authentication instanceof AnonymousAuthenticationToken);
     }
 }

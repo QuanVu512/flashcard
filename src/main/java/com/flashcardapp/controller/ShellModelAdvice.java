@@ -1,10 +1,9 @@
 package com.flashcardapp.controller;
 
 import com.flashcardapp.entity.Client;
+import com.flashcardapp.helper.security.SecurityUtil;
 import com.flashcardapp.service.LibraryService;
 import com.flashcardapp.service.UserService;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -21,11 +20,15 @@ public class ShellModelAdvice {
     }
 
     @ModelAttribute
-    public void addShellData(Model model, Authentication authentication) {
-        if (authentication == null || authentication instanceof AnonymousAuthenticationToken || !authentication.isAuthenticated()) {
+    public void addShellData(Model model) {
+        if (!SecurityUtil.isLoggedIn()) {
             return;
         }
-        Client client = userService.currentClient(authentication.getName());
+        String username = SecurityUtil.currentUsername().orElse("");
+        if (username.isBlank()) {
+            return;
+        }
+        Client client = userService.currentClient(username);
         model.addAttribute("client", client);
         model.addAttribute("folders", libraryService.foldersFor(client));
     }

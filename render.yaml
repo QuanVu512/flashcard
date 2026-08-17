@@ -11,6 +11,24 @@ services:
         sync: false
       - key: DATABASE_PASSWORD
         sync: false
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SESSION_COOKIE_SECURE
+        value: true
+      - key: SESSION_COOKIE_SAME_SITE
+        value: Lax
+      - key: APP_RATE_LIMIT_ENABLED
+        value: true
+      - key: APP_RATE_LIMIT_API_CAPACITY
+        value: 120
+      - key: APP_RATE_LIMIT_WINDOW_SECONDS
+        value: 60
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_DISPLAY_NAME
+        value: Admin
       - key: TRANSLATION_PROVIDER
         value: azure
       - key: TRANSLATION_DEFAULT_TARGET

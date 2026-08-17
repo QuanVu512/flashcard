@@ -24,5 +24,7 @@ public interface FlashcardSetRepository extends JpaRepository<FlashcardSet, UUID
     @EntityGraph(attributePaths = {"cards", "folder"})
     Optional<FlashcardSet> findByIdAndClient(UUID id, Client client);
 
+    long countByClient(Client client);
+
     long countByClientAndFolder(Client client, Folder folder);
 }

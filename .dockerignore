@@ -1,9 +1,15 @@
 target/
 .m2/
 .tools/
+.gradle/
+build/
 .git/
 .idea/
 .vscode/
 data/
+logs/
 .env
+.env.*
 *.log
+*.db
+*.iml

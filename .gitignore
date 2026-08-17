@@ -1,9 +1,17 @@
 target/
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
 .mvn/
 .m2/
 .tools/
 .idea/
 .vscode/
 data/
+logs/
 .env
+.env.*
+!.env.example
 *.log
+*.db
+*.iml

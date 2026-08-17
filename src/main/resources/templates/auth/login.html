@@ -17,6 +17,7 @@
 
         <div class="alert alert-success" th:if="${registered}">Đăng ký thành công, bạn có thể đăng nhập.</div>
         <div class="alert alert-danger" th:if="${param.error}">Email hoặc mật khẩu chưa đúng.</div>
+        <div class="alert alert-warning" th:if="${param.expired}">Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.</div>
         <div class="alert alert-info" th:if="${param.logout}">Bạn đã đăng xuất.</div>
 
         <form th:action="@{/login}" method="post" class="auth-form">

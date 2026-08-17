@@ -1,0 +1,102 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.3.5'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.flashcardapp'
+version = '0.0.1-SNAPSHOT'
+description = 'Vocabulary flashcard learning web app'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+
+    runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'com.h2database:h2'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+sourceSets {
+    test {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+
+    integrationTest {
+        java.srcDir file('src/integrationTest/java')
+        resources.srcDir file('src/integrationTest/resources')
+        compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+        runtimeClasspath += output + compileClasspath
+    }
+}
+
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.incremental = false
+    timeout = java.time.Duration.ofMinutes(2)
+}
+
+tasks.named('compileTestJava', JavaCompile) {
+    source += sourceSets.main.java
+    classpath = sourceSets.main.output + configurations.testCompileClasspath
+    options.sourcepath = files(sourceSets.main.java.srcDirs)
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    failFast = true
+    maxParallelForks = 1
+    timeout = java.time.Duration.ofMinutes(2)
+
+    testLogging {
+        events 'failed', 'skipped'
+        exceptionFormat 'short'
+    }
+}
+
+tasks.register('quickCheck') {
+    group = 'verification'
+    description = 'Compiles main and test code without starting Spring or calling external APIs.'
+    dependsOn 'classes', 'testClasses'
+    timeout = java.time.Duration.ofMinutes(3)
+}
+
+tasks.register('integrationTest', Test) {
+    group = 'verification'
+    description = 'Runs slower Spring/database integration tests when they exist.'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    shouldRunAfter tasks.named('test')
+    useJUnitPlatform()
+    failFast = true
+    maxParallelForks = 1
+    timeout = java.time.Duration.ofMinutes(5)
+    systemProperty 'spring.profiles.active', 'test'
+
+    testLogging {
+        events 'failed', 'skipped'
+        exceptionFormat 'short'
+    }
+}

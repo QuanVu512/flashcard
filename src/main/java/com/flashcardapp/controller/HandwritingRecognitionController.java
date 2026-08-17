@@ -3,6 +3,7 @@ package com.flashcardapp.controller;
 import com.flashcardapp.dto.HandwritingRecognitionRequest;
 import com.flashcardapp.dto.HandwritingRecognitionResponse;
 import com.flashcardapp.service.HandwritingRecognitionService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,7 +18,7 @@ public class HandwritingRecognitionController {
     }
 
     @PostMapping("/api/handwriting/recognize")
-    public HandwritingRecognitionResponse recognize(@RequestBody HandwritingRecognitionRequest request) {
+    public HandwritingRecognitionResponse recognize(@Valid @RequestBody HandwritingRecognitionRequest request) {
         try {
             return handwritingRecognitionService.recognize(request.getImageData(), request.getLanguage());
         } catch (Exception ignored) {

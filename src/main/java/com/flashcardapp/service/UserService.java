@@ -25,7 +25,7 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public void register(RegisterRequest request) {
-        String email = request.getEmail().trim().toLowerCase();
+        String email = normalizeEmail(request.getEmail());
         if (appUserRepository.existsByEmailIgnoreCase(email)) {
             throw new UserAlreadyExistsException("Email đã được sử dụng");
         }
@@ -52,8 +52,32 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional
+    public void ensureAdminUser(String email, String password, String displayName) {
+        if (!hasText(email) || !hasText(password)) {
+            return;
+        }
+
+        String normalizedEmail = normalizeEmail(email);
+        AppUser user = appUserRepository.findByEmailIgnoreCase(normalizedEmail)
+                .orElseGet(() -> {
+                    Client client = new Client();
+                    client.setDisplayName(hasText(displayName) ? displayName.trim() : "Admin");
+
+                    AppUser newUser = new AppUser();
+                    newUser.setEmail(normalizedEmail);
+                    newUser.setPasswordHash(passwordEncoder.encode(password));
+                    newUser.setClient(client);
+                    return newUser;
+                });
+
+        user.setRole("ROLE_ADMIN");
+        user.setEnabled(true);
+        appUserRepository.save(user);
+    }
+
+    @Transactional
     public long addScore(String email, long points) {
-        long safePoints = Math.max(0, Math.min(points, 1_000_000));
+        long safePoints = Math.max(0, Math.min(points, 20_000));
         Client client = appUserRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Khong tim thay nguoi dung"))
                 .getClient();
@@ -71,5 +95,13 @@ public class UserService implements UserDetailsService {
                 .authorities(user.getRole())
                 .disabled(!user.isEnabled())
                 .build();
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase();
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }

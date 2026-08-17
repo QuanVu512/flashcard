@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 <aside class="sidebar" th:fragment="sidebar(active)">
     <div class="brand-row">
@@ -17,6 +18,10 @@
         <a th:href="@{/library}" th:classappend="${active == 'library'} ? ' active'">
             <i class="bi bi-folder2-open"></i>
             <span>Thư viện</span>
+        </a>
+        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}" th:classappend="${active == 'admin'} ? ' active'">
+            <i class="bi bi-shield-lock"></i>
+            <span>Quản trị</span>
         </a>
     </nav>
 

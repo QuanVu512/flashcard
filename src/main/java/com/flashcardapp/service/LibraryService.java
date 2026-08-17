@@ -8,6 +8,7 @@ import com.flashcardapp.entity.Client;
 import com.flashcardapp.entity.Flashcard;
 import com.flashcardapp.entity.FlashcardSet;
 import com.flashcardapp.entity.Folder;
+import com.flashcardapp.helper.exception.ResourceNotFoundException;
 import com.flashcardapp.repository.FlashcardSetRepository;
 import com.flashcardapp.repository.FolderRepository;
 import org.springframework.stereotype.Service;
@@ -71,7 +72,7 @@ public class LibraryService {
     @Transactional(readOnly = true)
     public Folder requireFolder(Client client, UUID folderId) {
         return folderRepository.findByIdAndClient(folderId, client)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thư mục"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thư mục"));
     }
 
     @Transactional(readOnly = true)
@@ -90,7 +91,7 @@ public class LibraryService {
     @Transactional(readOnly = true)
     public FlashcardSet requireSet(Client client, UUID setId) {
         return flashcardSetRepository.findByIdAndClient(setId, client)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy bộ flashcard"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bộ flashcard"));
     }
 
     @Transactional

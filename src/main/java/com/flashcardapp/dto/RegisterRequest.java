@@ -15,10 +15,11 @@ public class RegisterRequest {
     private String email;
 
     @NotBlank(message = "Vui lòng nhập mật khẩu")
-    @Size(min = 6, message = "Mật khẩu tối thiểu 6 ký tự")
+    @Size(min = 8, max = 128, message = "Mật khẩu cần từ 8 đến 128 ký tự")
     private String password;
 
     @NotBlank(message = "Vui lòng xác nhận mật khẩu")
+    @Size(max = 128, message = "Mật khẩu xác nhận tối đa 128 ký tự")
     private String confirmPassword;
 
     public String getDisplayName() {
