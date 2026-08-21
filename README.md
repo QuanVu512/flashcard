@@ -117,6 +117,3 @@ Project đã có `Dockerfile` và `render.yaml`. Trên Render, tạo Web Service
 
 Render free plan có thể sleep sau một thời gian không dùng. Đây là hành vi bình thường của gói miễn phí.
 
-## Ghi Chú Portfolio
-
-Project này phù hợp để trình bày khi xin thực tập vì có đủ luồng thực tế: authentication, CRUD, relational database, external API, deploy Docker, UI tương tác, kiểm thử cơ bản và tài liệu kiến trúc.
