@@ -15,10 +15,6 @@ Flashcard dùng Spring Security theo mô hình server-rendered MVC, nên cơ ch�
 - Rate limit cho `/api/translation/suggest`, `/api/handwriting/recognize` và `/api/games/score`.
 - Production profile ẩn message, binding error và stacktrace khỏi response.
 
-## Vì sao chưa dùng JWT như hoagiayphudong?
-
-`hoagiayphudong` có frontend static/API-oriented và nhiều vai trò nhân sự nên JWT + refresh token hợp lý hơn. Flashcard hiện là Thymeleaf MVC, người dùng tương tác qua cùng domain, nên session cookie an toàn và đơn giản hơn. Nếu sau này tách frontend React/mobile app, có thể bổ sung JWT mà không phải viết lại toàn bộ domain.
-
 ## Admin bootstrap
 
 Tài khoản admin được tạo hoặc promote khi app khởi động nếu có đủ biến môi trường:
@@ -42,7 +38,7 @@ APP_RATE_LIMIT_API_CAPACITY=120
 APP_RATE_LIMIT_WINDOW_SECONDS=60
 ```
 
-Nếu sau này frontend tách domain riêng, chỉ mở CORS cho đúng domain đó:
+Nếu sau này frontend tách domain riêng, chỉ mở CORS cho đúng domain:
 
 ```properties
 APP_CORS_ALLOWED_ORIGINS=https://your-frontend.example.com
