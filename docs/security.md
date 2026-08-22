@@ -1,49 +1,65 @@
-# Security Notes
+# Security Model
 
-Flashcard dùng Spring Security theo mô hình server-rendered MVC, nên cơ chế chính là session cookie thay vì JWT. Cách này phù hợp với Thymeleaf vì frontend và backend chạy cùng một app.
+Flashcard dùng Spring Security theo mô hình REST stateless. Spring OAuth2 Resource Server xác thực JWT, còn trình duyệt nhận access token qua cookie bảo mật thay vì để JavaScript quản lý token.
 
-## Những lớp bảo vệ chính
+## Luồng xác thực
 
-- Authentication bằng form login, mật khẩu hash bằng BCrypt.
-- Authorization theo role: user thường dùng thư viện học tập, admin truy cập `/admin/**`.
-- Method security với `@PreAuthorize` cho controller admin.
-- Ownership guard ở tầng service: user chỉ lấy được folder/set thuộc `Client` của chính mình.
-- CSRF bật mặc định cho form và các API ghi dữ liệu.
-- Session hardening: session fixation protection, session timeout, HttpOnly cookie, SameSite cookie và Secure cookie trong production.
-- Security headers: Content Security Policy, frame deny, same-origin referrer policy và Permissions-Policy.
-- REST error handler trả JSON cho lỗi API thay vì lộ stacktrace.
-- Rate limit cho `/api/translation/suggest`, `/api/handwriting/recognize` và `/api/games/score`.
-- Production profile ẩn message, binding error và stacktrace khỏi response.
+1. Frontend lấy CSRF token từ `GET /api/auth/csrf`.
+2. Frontend gửi thông tin đăng nhập đến `POST /api/auth/login` hoặc `POST /api/auth/register`.
+3. Backend xác thực mật khẩu bằng BCrypt và ký JWT HS256.
+4. JWT được trả qua header `Set-Cookie` với `HttpOnly`, `SameSite`, `Path=/` và `Secure` trong production.
+5. `CookieBearerTokenResolver` lấy JWT từ cookie; OAuth2 Resource Server kiểm tra chữ ký, thời hạn và role.
+6. Frontend gọi `GET /api/auth/me` khi tải trang để khôi phục thông tin hiển thị của phiên.
+7. `POST /api/auth/logout` trả cookie hết hạn để xoá JWT khỏi trình duyệt.
 
-## Vì sao chưa dùng JWT như hoagiayphudong?
+JWT không xuất hiện trong response JSON và không được lưu trong `localStorage` hoặc `sessionStorage`. API client tin cậy vẫn có thể gửi Bearer token trong header `Authorization`.
 
-`hoagiayphudong` có frontend static/API-oriented và nhiều vai trò nhân sự nên JWT + refresh token hợp lý hơn. Flashcard hiện là Thymeleaf MVC, người dùng tương tác qua cùng domain, nên session cookie an toàn và đơn giản hơn. Nếu sau này tách frontend React/mobile app, có thể bổ sung JWT mà không phải viết lại toàn bộ domain.
+## CSRF
 
-## Admin bootstrap
+Vì trình duyệt tự gửi cookie xác thực, các method thay đổi dữ liệu được bảo vệ bằng CSRF double-submit cookie. Frontend đọc CSRF token riêng và gửi lại qua `X-XSRF-TOKEN`. CSRF token không phải credential đăng nhập.
 
-Tài khoản admin được tạo hoặc promote khi app khởi động nếu có đủ biến môi trường:
+Các method an toàn (`GET`, `HEAD`, `OPTIONS`, `TRACE`) không yêu cầu CSRF token. Login, register và logout vẫn yêu cầu CSRF vì đều là request ghi dữ liệu. Request dùng Bearer token rõ ràng trong header không cần CSRF vì trình duyệt không tự gắn credential này.
 
-```properties
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=change-this-strong-password
-ADMIN_DISPLAY_NAME=Admin
-```
+## Phân quyền
 
-Không commit giá trị thật của các biến này.
+- `/api/auth/login`, `/api/auth/register`, `/api/auth/logout` và `/api/auth/csrf` là endpoint công khai.
+- Các endpoint `/api/**` còn lại yêu cầu JWT hợp lệ.
+- `/api/admin/**` yêu cầu `ROLE_ADMIN` và được bảo vệ thêm bằng method security.
+- Service kiểm tra quyền sở hữu folder và flashcard set, tránh truy cập dữ liệu của người dùng khác chỉ bằng cách thay UUID.
 
-## Biến môi trường nên đặt khi deploy
+## Cấu hình cookie
 
 ```properties
-SPRING_PROFILES_ACTIVE=prod
-SESSION_COOKIE_SECURE=true
-SESSION_COOKIE_SAME_SITE=Lax
-APP_RATE_LIMIT_ENABLED=true
-APP_RATE_LIMIT_API_CAPACITY=120
-APP_RATE_LIMIT_WINDOW_SECONDS=60
+AUTH_COOKIE_NAME=flashcard_access_token
+AUTH_COOKIE_SECURE=true
+AUTH_COOKIE_SAME_SITE=Lax
 ```
 
-Nếu sau này frontend tách domain riêng, chỉ mở CORS cho đúng domain đó:
+- Local HTTP dùng `AUTH_COOKIE_SECURE=false`.
+- Production HTTPS dùng `AUTH_COOKIE_SECURE=true`.
+- Nếu frontend nằm ở site khác, dùng `SameSite=None`, bắt buộc bật `Secure` và chỉ định CORS origin chính xác.
+- Không đặt `Domain`, vì vậy cookie mặc định là host-only.
+
+## JWT secret
+
+Production bắt buộc cấu hình một trong hai biến:
 
 ```properties
-APP_CORS_ALLOWED_ORIGINS=https://your-frontend.example.com
+JWT_SECRET=random-secret-at-least-32-bytes
+# hoặc
+JWT_BASE64_SECRET=base64-encoded-random-secret
 ```
+
+Không commit secret thật. Profile `prod` không dùng secret phát triển mặc định.
+
+## Các lớp bảo vệ bổ sung
+
+- Content Security Policy, frame deny, same-origin referrer policy và Permissions Policy.
+- JSON error response cho 401/403 và lỗi API.
+- Rate limit cho login, register, dịch, OCR và ghi điểm để bảo vệ tài khoản/quota.
+- Production ẩn stack trace và binding details khỏi response.
+- CORS credential chỉ mở cho origin được cấu hình, không dùng wildcard.
+
+## OAuth2 mở rộng
+
+Hiện tại ứng dụng tự phát hành JWT và dùng Spring OAuth2 Resource Server để xác thực. Dependency OAuth2 Client là nền tảng cho đăng nhập Google trong tương lai, nhưng provider login chưa được bật mặc định.

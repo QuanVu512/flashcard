@@ -1,0 +1,9 @@
+<section class="card-editor" data-card-row aria-label="Flashcard">
+    <div class="card-index"></div>
+    <label><span>Từ vựng</span><input class="form-control" data-card-field="term" placeholder="Nhập từ vựng" maxlength="240" autocomplete="off"></label>
+    <label class="suggest-wrap"><span>Phiên âm</span><input class="form-control" data-card-field="phonetic" placeholder="Nhập phiên âm nếu có" maxlength="240" autocomplete="off"><div class="suggest-box" data-phonetic-suggestions hidden></div></label>
+    <label class="suggest-wrap"><span>Nghĩa</span><input class="form-control" data-card-field="definition" placeholder="Nhập nghĩa" maxlength="800" autocomplete="off"><div class="suggest-box" data-meaning-suggestions hidden></div></label>
+    <label><span>Ví dụ</span><input class="form-control" data-card-field="example" placeholder="Nhập ví dụ nếu có" maxlength="800" autocomplete="off"></label>
+    <button class="icon-button text-danger" type="button" data-remove-card title="Xóa thẻ"><i class="bi bi-trash3"></i></button>
+    <div class="field-error card-error" data-card-error hidden></div>
+</section>

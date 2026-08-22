@@ -1,17 +1,20 @@
 package com.flashcardapp;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockCookie;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -20,8 +23,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @AutoConfigureMockMvc
@@ -32,108 +35,93 @@ class FlashcardApplicationTests {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Test
     void contextLoads() {
     }
 
     @Test
-    void publicAuthPagesRender() throws Exception {
+    void publicSpaRoutesServeStaticIndex() throws Exception {
         mockMvc.perform(get("/login"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("example@gmail.com")));
+                .andExpect(forwardedUrl("/index.html"));
 
-        mockMvc.perform(get("/register"))
+        mockMvc.perform(get("/library"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("example1@-.*")));
+                .andExpect(forwardedUrl("/index.html"));
+
+        mockMvc.perform(get("/views/auth/login.html"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Đăng nhập")));
     }
 
     @Test
-    void authenticatedUserCanCreateAndPracticeFlashcardSet() throws Exception {
-        String email = "test-" + UUID.randomUUID() + "@flashcard.local";
-        register(email);
+    void authenticatedUserCanCreateAndPracticeFlashcardSetThroughRestApi() throws Exception {
+        Cookie authCookie = registerAndCookie("test-" + UUID.randomUUID() + "@flashcard.local");
 
-        mockMvc.perform(get("/sets/new").with(user(email)))
+        mockMvc.perform(get("/api/library").cookie(authCookie))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Nhập từ vựng")));
+                .andExpect(jsonPath("$.user.email").exists());
 
-        MvcResult result = mockMvc.perform(post("/sets")
-                        .with(user(email))
+        MvcResult result = mockMvc.perform(post("/api/sets")
+                        .cookie(authCookie)
                         .with(csrf())
-                        .param("title", "Vocabulary Set")
-                        .param("description", "Practice set")
-                        .param("cards[0].term", "growth")
-                        .param("cards[0].definition", "su phat trien")
-                        .param("cards[1].term", "coordination")
-                        .param("cards[1].definition", "su phoi hop")
-                        .param("cards[2].term", "memory")
-                        .param("cards[2].definition", "tri nho")
-                        .param("cards[3].term", "attention")
-                        .param("cards[3].definition", "su chu y"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrlPattern("/sets/*"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Vocabulary Set",
+                                  "description": "Practice set",
+                                  "cards": [
+                                    {"term": "growth", "definition": "su phat trien"},
+                                    {"term": "coordination", "definition": "su phoi hop"},
+                                    {"term": "memory", "definition": "tri nho"},
+                                    {"term": "attention", "definition": "su chu y"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.cards.length()").value(4))
                 .andReturn();
 
-        String setUrl = result.getResponse().getRedirectedUrl();
-        assertThat(setUrl).isNotBlank();
+        String setId = read(result, "id");
 
-        mockMvc.perform(get(setUrl).with(user(email)))
+        mockMvc.perform(get("/api/sets/" + setId + "/study").cookie(authCookie))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Flashcards")))
-                .andExpect(content().string(containsString("Learn")))
-                .andExpect(content().string(containsString("Test")))
-                .andExpect(content().string(containsString("Đảo thứ tự")));
+                .andExpect(jsonPath("$.title").value("Vocabulary Set"));
 
-        mockMvc.perform(get(setUrl + "/learn").with(user(email)))
+        mockMvc.perform(get("/api/sets/" + setId + "/learn").cookie(authCookie))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Chọn đáp án")));
+                .andExpect(jsonPath("$.questions.length()").value(4));
 
-        mockMvc.perform(get(setUrl + "/test/setup").with(user(email)))
+        mockMvc.perform(get("/api/sets/" + setId + "/test/setup").cookie(authCookie))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Số câu hỏi")));
+                .andExpect(jsonPath("$.maxQuestions").value(4));
 
-        mockMvc.perform(get(setUrl + "/test?questionCount=3&minutes=5").with(user(email)))
+        mockMvc.perform(get("/api/sets/" + setId + "/test?questionCount=3&minutes=5")
+                        .cookie(authCookie))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-practice-mode=\"test\"")));
+                .andExpect(jsonPath("$.questionCount").value(3));
     }
 
     @Test
-    void regularUserCannotOpenAdminDashboard() throws Exception {
-        String email = "user-" + UUID.randomUUID() + "@flashcard.local";
-        register(email);
+    void regularUserCannotOpenAdminApi() throws Exception {
+        Cookie authCookie = registerAndCookie("user-" + UUID.randomUUID() + "@flashcard.local");
 
-        mockMvc.perform(get("/admin").with(user(email).roles("USER")))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/access-denied"));
+        mockMvc.perform(get("/api/admin").cookie(authCookie))
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    void adminCanOpenDashboard() throws Exception {
+    void adminCanOpenDashboardApi() throws Exception {
         String email = "admin-" + UUID.randomUUID() + "@flashcard.local";
-        register(email);
 
-        mockMvc.perform(get("/admin").with(user(email).roles("ADMIN")))
+        mockMvc.perform(get("/api/admin").with(user(email).roles("ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Bảng quản trị")))
-                .andExpect(content().string(containsString("Tài khoản")));
-    }
-
-    @Test
-    void adminCanOpenUserDetailFromDashboard() throws Exception {
-        String email = "detail-admin-" + UUID.randomUUID() + "@flashcard.local";
-        register(email);
-
-        MvcResult dashboard = mockMvc.perform(get("/admin").with(user(email).roles("ADMIN")))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        Matcher matcher = Pattern.compile("/admin/users/[0-9a-fA-F-]{36}")
-                .matcher(dashboard.getResponse().getContentAsString());
-        assertThat(matcher.find()).isTrue();
-
-        mockMvc.perform(get(matcher.group()).with(user(email).roles("ADMIN")))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Thông tin tài khoản")))
-                .andExpect(content().string(containsString("Hoạt động học tập")));
+                .andExpect(jsonPath("$.stats.userCount").exists())
+                .andExpect(jsonPath("$.users").isArray());
     }
 
     @Test
@@ -148,31 +136,58 @@ class FlashcardApplicationTests {
 
     @Test
     void userCannotOpenAnotherUsersFlashcardSet() throws Exception {
-        String ownerEmail = "owner-" + UUID.randomUUID() + "@flashcard.local";
-        String visitorEmail = "visitor-" + UUID.randomUUID() + "@flashcard.local";
-        register(ownerEmail);
-        register(visitorEmail);
+        Cookie ownerCookie = registerAndCookie("owner-" + UUID.randomUUID() + "@flashcard.local");
+        Cookie visitorCookie = registerAndCookie("visitor-" + UUID.randomUUID() + "@flashcard.local");
 
-        MvcResult result = mockMvc.perform(post("/sets")
-                        .with(user(ownerEmail))
+        MvcResult result = mockMvc.perform(post("/api/sets")
+                        .cookie(ownerCookie)
                         .with(csrf())
-                        .param("title", "Private Set")
-                        .param("cards[0].term", "private")
-                        .param("cards[0].definition", "rieng tu"))
-                .andExpect(status().is3xxRedirection())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Private Set",
+                                  "cards": [{"term": "private", "definition": "rieng tu"}]
+                                }
+                                """))
+                .andExpect(status().isOk())
                 .andReturn();
 
-        mockMvc.perform(get(result.getResponse().getRedirectedUrl()).with(user(visitorEmail)))
+        String setId = read(result, "id");
+
+        mockMvc.perform(get("/api/sets/" + setId).cookie(visitorCookie))
                 .andExpect(status().isNotFound());
     }
 
-    private void register(String email) throws Exception {
-        mockMvc.perform(post("/register")
+    private Cookie registerAndCookie(String email) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/auth/register")
                         .with(csrf())
-                        .param("displayName", "Test User")
-                        .param("email", email)
-                        .param("password", "secret123")
-                        .param("confirmPassword", "secret123"))
-                .andExpect(status().is3xxRedirection());
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "displayName": "Test User",
+                                  "email": "%s",
+                                  "password": "secret123",
+                                  "confirmPassword": "secret123"
+                                }
+                                """.formatted(email)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
+                .andExpect(jsonPath("$.user.email").value(email))
+                .andReturn();
+        MockCookie cookie = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE).stream()
+                .map(MockCookie::parse)
+                .filter(MockCookie::isHttpOnly)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Response không có auth cookie HttpOnly"));
+        assertThat(cookie.isHttpOnly()).isTrue();
+        return cookie;
     }
+
+    private String read(MvcResult result, String field) throws Exception {
+        JsonNode json = objectMapper.readTree(result.getResponse().getContentAsByteArray());
+        String value = json.path(field).asText();
+        assertThat(value).isNotBlank();
+        return value;
+    }
+
 }

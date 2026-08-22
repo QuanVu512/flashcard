@@ -11,6 +11,447 @@
     --shadow: 0 12px 34px rgba(23, 33, 63, 0.08);
 }
 
+.library-head,
+.topbar,
+.practice-top,
+.study-controls,
+.set-actions,
+.sticky-actions {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.library-head {
+    margin-bottom: 22px;
+}
+
+.library-head.compact {
+    margin: 28px 0 12px;
+}
+
+.library-head h1,
+.library-head h2 {
+    font-weight: 900;
+    margin: 0;
+}
+
+.breadcrumb-lite {
+    color: var(--muted);
+    cursor: pointer;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+
+.search-row {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-bottom: 22px;
+}
+
+.set-list {
+    display: grid;
+    gap: 12px;
+}
+
+.set-row,
+.form-card,
+.card-editor,
+.practice-panel,
+.flip-panel {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 22px rgba(23, 33, 63, 0.04);
+}
+
+.set-row {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    min-height: 82px;
+    padding: 18px 20px;
+}
+
+.set-row:hover {
+    border-color: rgba(66, 87, 255, 0.28);
+    box-shadow: var(--shadow);
+}
+
+.set-row h2 {
+    font-size: 1.15rem;
+    font-weight: 900;
+    margin: 4px 0;
+}
+
+.set-row p,
+.set-meta,
+.side-title,
+.question-label,
+.study-label,
+.study-phonetic,
+.study-example {
+    color: var(--muted);
+}
+
+.set-meta,
+.side-title,
+.question-label,
+.study-label {
+    font-size: 0.82rem;
+    font-weight: 850;
+}
+
+.form-card,
+.practice-panel,
+.flip-panel {
+    padding: 24px;
+}
+
+.card-editor {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 42px 1fr 0.65fr 1fr 1fr auto;
+    margin-bottom: 14px;
+    padding: 16px;
+}
+
+.card-editor label {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.card-editor label span {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 850;
+}
+
+.card-index {
+    align-items: center;
+    background: var(--soft);
+    border-radius: 50%;
+    display: flex;
+    font-weight: 900;
+    height: 36px;
+    justify-content: center;
+    width: 36px;
+}
+
+.card-error {
+    grid-column: 2 / -1;
+}
+
+.suggest-wrap {
+    position: relative;
+}
+
+.suggest-box {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    left: 0;
+    min-width: 260px;
+    padding: 8px;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 20;
+}
+
+.suggest-title {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 850;
+    padding: 6px 8px;
+}
+
+.suggest-item {
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    color: var(--ink);
+    display: block;
+    font-weight: 800;
+    padding: 9px 8px;
+    text-align: left;
+    width: 100%;
+}
+
+.suggest-item:hover {
+    background: var(--soft);
+}
+
+.suggest-item.muted {
+    color: var(--muted);
+}
+
+.suggest-item.error {
+    color: var(--danger);
+}
+
+.sticky-actions {
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.9);
+    border-top: 1px solid var(--line);
+    bottom: 0;
+    justify-content: flex-end;
+    padding: 14px 0;
+    position: sticky;
+}
+
+.mode-tabs {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 22px;
+}
+
+.mode-tab {
+    background: var(--soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink);
+    font-weight: 900;
+    min-height: 56px;
+}
+
+.mode-tab.active {
+    border-color: var(--brand);
+    color: var(--brand);
+}
+
+.study-progress {
+    color: var(--muted);
+    font-weight: 900;
+    margin-bottom: 10px;
+}
+
+.study-card {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 380px;
+    padding: 32px;
+    text-align: center;
+    transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.study-card.is-flipped {
+    transform: rotateY(2deg) scale(1.01);
+}
+
+.study-hint {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 800;
+    margin-bottom: 40px;
+}
+
+.study-term {
+    font-size: clamp(2rem, 4vw, 4rem);
+    font-weight: 900;
+}
+
+.study-controls {
+    justify-content: center;
+    margin-top: 16px;
+}
+
+.practice-panel h2 {
+    font-size: clamp(1.7rem, 3vw, 3rem);
+    font-weight: 900;
+    margin: 22px 0;
+}
+
+.choice-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.choice-card,
+.memory-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink);
+    font-weight: 850;
+    min-height: 62px;
+    padding: 12px 16px;
+    text-align: left;
+}
+
+.choice-card:hover,
+.memory-card:hover {
+    border-color: var(--brand);
+    color: var(--brand);
+}
+
+[data-write-answer],
+.test-setup-grid,
+.learn-toolbar {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.test-setup-grid {
+    align-items: end;
+    grid-template-columns: 1fr 0.5fr 0.5fr auto;
+}
+
+.learn-toolbar {
+    align-items: end;
+    grid-template-columns: 1fr 1fr auto;
+    margin-bottom: 16px;
+}
+
+.link-button {
+    background: transparent;
+    border: 0;
+    color: var(--brand);
+    font-weight: 900;
+    margin-top: 18px;
+}
+
+.handwriting-box {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-top: 16px;
+    overflow: hidden;
+}
+
+.handwriting-head {
+    align-items: center;
+    background: var(--soft);
+    border-bottom: 1px solid var(--line);
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) 220px auto auto;
+    padding: 12px;
+}
+
+.handwriting-box canvas {
+    background: #fff;
+    display: block;
+    height: 240px;
+    touch-action: none;
+    width: 100%;
+}
+
+.handwriting-status {
+    background: var(--soft);
+    color: var(--muted);
+    font-weight: 850;
+    padding: 10px 14px;
+}
+
+.handwriting-status.error {
+    color: var(--danger);
+}
+
+.handwriting-status.success {
+    color: var(--teal);
+}
+
+.memory-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.memory-card {
+    min-height: 112px;
+    text-align: center;
+}
+
+.memory-card.open {
+    background: var(--soft);
+    color: var(--brand);
+}
+
+.empty-state {
+    background: var(--soft);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    color: var(--muted);
+    font-weight: 850;
+    padding: 28px;
+    text-align: center;
+}
+
+.score-pill,
+.avatar {
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    display: inline-flex;
+    font-weight: 900;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 14px;
+}
+
+.avatar {
+    background: var(--teal);
+    color: #fff;
+    justify-content: center;
+    padding: 0;
+    width: 42px;
+}
+
+.admin-stats {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    margin-bottom: 22px;
+}
+
+.admin-stats div {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.admin-stats b {
+    color: var(--brand);
+    display: block;
+    font-size: 1.8rem;
+}
+
+.admin-stats span {
+    color: var(--muted);
+    font-weight: 850;
+}
+
+@media (max-width: 980px) {
+    .card-editor,
+    .mode-tabs,
+    .choice-grid,
+    .memory-grid,
+    .admin-stats,
+    .learn-toolbar,
+    .handwriting-head,
+    .test-setup-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .card-index {
+        grid-row: auto;
+    }
+}
+
 * {
     box-sizing: border-box;
 }
@@ -248,8 +689,11 @@ a {
 }
 
 .workspace {
-    flex: 1;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
     min-width: 0;
+    width: 0;
 }
 
 .topbar {
@@ -258,6 +702,7 @@ a {
     gap: 18px;
     justify-content: space-between;
     padding: 10px 28px;
+    width: 100%;
 }
 
 .top-search {
@@ -356,9 +801,11 @@ a {
 }
 
 .content {
+    flex: 1 1 auto;
     margin: 42px auto 80px;
-    max-width: 1220px;
+    max-width: 1440px;
     padding: 0 42px;
+    width: 100%;
 }
 
 .content-heading {
@@ -1685,6 +2132,10 @@ a {
 @media (max-width: 980px) {
     .app-shell {
         display: block;
+    }
+
+    .workspace {
+        width: 100%;
     }
 
     .sidebar {

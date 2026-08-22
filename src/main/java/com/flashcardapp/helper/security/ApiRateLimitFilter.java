@@ -5,7 +5,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.core.Ordered;
+import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -24,10 +24,12 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 20)
+@Order(SecurityProperties.DEFAULT_FILTER_ORDER + 2)
 public class ApiRateLimitFilter extends OncePerRequestFilter {
 
     private static final Set<String> LIMITED_API_PATHS = Set.of(
+            "/api/auth/login",
+            "/api/auth/register",
             "/api/translation/suggest",
             "/api/handwriting/recognize",
             "/api/games/score"
@@ -109,7 +111,7 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
                 {
                   "message": "Bạn thao tác hơi nhanh, hãy thử lại sau một chút.",
                   "status": 429,
-                  "details": ["API đang được giới hạn để bảo vệ tài khoản và quota dịch."],
+                  "details": ["API đang được giới hạn để bảo vệ tài khoản và tài nguyên hệ thống."],
                   "timestamp": "%s"
                 }
                 """.formatted(OffsetDateTime.now()));

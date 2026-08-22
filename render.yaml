@@ -13,16 +13,16 @@ services:
         sync: false
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      - key: SESSION_COOKIE_SECURE
-        value: true
-      - key: SESSION_COOKIE_SAME_SITE
-        value: Lax
       - key: APP_RATE_LIMIT_ENABLED
         value: true
       - key: APP_RATE_LIMIT_API_CAPACITY
         value: 120
       - key: APP_RATE_LIMIT_WINDOW_SECONDS
         value: 60
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRATION_MINUTES
+        value: 120
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD

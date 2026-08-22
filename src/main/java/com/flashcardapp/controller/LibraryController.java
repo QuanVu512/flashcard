@@ -1,60 +1,63 @@
 package com.flashcardapp.controller;
 
+import com.flashcardapp.dto.FlashcardSetSummaryResponse;
+import com.flashcardapp.dto.FolderResponse;
+import com.flashcardapp.dto.LibraryResponse;
+import com.flashcardapp.dto.UserProfileResponse;
+import com.flashcardapp.entity.AppUser;
 import com.flashcardapp.entity.Client;
 import com.flashcardapp.entity.FlashcardSet;
 import com.flashcardapp.entity.Folder;
-import com.flashcardapp.service.LibraryService;
+import com.flashcardapp.service.FlashcardSetService;
+import com.flashcardapp.service.FolderService;
 import com.flashcardapp.service.UserService;
 import org.springframework.security.core.Authentication;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
 
-@Controller
+@RestController
 public class LibraryController {
 
     private final UserService userService;
-    private final LibraryService libraryService;
+    private final FolderService folderService;
+    private final FlashcardSetService flashcardSetService;
 
-    public LibraryController(UserService userService, LibraryService libraryService) {
+    public LibraryController(UserService userService,
+                             FolderService folderService,
+                             FlashcardSetService flashcardSetService) {
         this.userService = userService;
-        this.libraryService = libraryService;
+        this.folderService = folderService;
+        this.flashcardSetService = flashcardSetService;
     }
 
-    @GetMapping("/")
-    public String home() {
-        return "redirect:/library";
+    @GetMapping("/api/library")
+    public LibraryResponse library(@RequestParam(value = "q", required = false) String keyword,
+                                   Authentication authentication) {
+        AppUser user = userService.currentUser(authentication.getName());
+        Client client = user.getClient();
+        return libraryResponse(user, flashcardSetService.findForLibrary(client, keyword));
     }
 
-    @GetMapping("/library")
-    public String library(@RequestParam(value = "q", required = false) String keyword,
-                          Authentication authentication,
-                          Model model) {
-        Client client = userService.currentClient(authentication.getName());
-        List<FlashcardSet> sets = libraryService.setsFor(client, keyword);
-        model.addAttribute("groupedSets", libraryService.groupByDate(sets));
-        model.addAttribute("keyword", keyword == null ? "" : keyword);
-        model.addAttribute("currentFolder", null);
-        model.addAttribute("pageTitle", "Thư viện của bạn");
-        return "library";
+    @GetMapping("/api/folders/{id}/library")
+    public LibraryResponse folderLibrary(@PathVariable UUID id,
+                                         Authentication authentication) {
+        AppUser user = userService.currentUser(authentication.getName());
+        Client client = user.getClient();
+        Folder folder = folderService.requireOwnedFolder(client, id);
+        return libraryResponse(user, flashcardSetService.findInFolder(client, folder));
     }
 
-    @GetMapping("/folders/{id}")
-    public String folder(@PathVariable UUID id,
-                         Authentication authentication,
-                         Model model) {
-        Client client = userService.currentClient(authentication.getName());
-        Folder folder = libraryService.requireFolder(client, id);
-        List<FlashcardSet> sets = libraryService.setsInFolder(client, folder);
-        model.addAttribute("groupedSets", libraryService.groupByDate(sets));
-        model.addAttribute("keyword", "");
-        model.addAttribute("currentFolder", folder);
-        model.addAttribute("pageTitle", folder.getName());
-        return "library";
+    private LibraryResponse libraryResponse(AppUser user, List<FlashcardSet> sets) {
+        Client client = user.getClient();
+        return new LibraryResponse(
+                UserProfileResponse.from(user),
+                folderService.foldersFor(client).stream().map(FolderResponse::from).toList(),
+                sets.stream().map(FlashcardSetSummaryResponse::from).toList()
+        );
     }
 }

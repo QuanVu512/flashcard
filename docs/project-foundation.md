@@ -12,8 +12,8 @@ Flashcard Learning App là web học từ vựng cá nhân, tập trung vào m�
 
 ## Module Backend
 
-- `auth`: đăng ký, đăng nhập, logout và quản lý user hiện tại.
-- `security`: phân quyền role, session hardening, CSRF, security headers, rate limit và xử lý 401/403.
+- `auth`: đăng ký, đăng nhập JWT và quản lý user hiện tại.
+- `security`: phân quyền role, stateless JWT, security headers, rate limit và xử lý 401/403.
 - `admin`: dashboard quản trị user, thống kê hệ thống và khóa/mở tài khoản.
 - `library`: thư viện cá nhân, tìm kiếm bộ flashcard.
 - `folder`: chia chương/bài học bằng thư mục.
@@ -25,10 +25,14 @@ Flashcard Learning App là web học từ vựng cá nhân, tập trung vào m�
 
 ## Frontend
 
-- Thymeleaf render trang chính để đơn giản khi deploy một service.
+- Static SPA render giao diện và gọi REST API bằng `fetch`.
 - Bootstrap dùng cho layout cơ bản.
 - CSS riêng trong `src/main/resources/static/css/app.css` để tạo giao diện giống thư viện học tập.
-- JavaScript trong `src/main/resources/static/js/app.js` xử lý flashcard, Learn/Test, game, autocomplete và canvas.
+- `js/core` chứa API client, state, navigation và utility dùng chung.
+- `js/app` chứa router và điều phối sự kiện toàn cục.
+- `js/features` tách riêng auth, library, admin, study, practice, handwriting và game.
+- `templates/auth`, `templates/admin`, `templates/error` và `templates/fragments` phân loại HTML theo trách nhiệm; các file này được phục vụ tĩnh, không dùng Thymeleaf.
+- JWT nằm trong cookie `HttpOnly`; frontend không đọc hoặc lưu access token.
 
 ## Database
 

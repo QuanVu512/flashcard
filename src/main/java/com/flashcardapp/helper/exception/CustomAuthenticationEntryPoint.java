@@ -1,6 +1,5 @@
 package com.flashcardapp.helper.exception;
 
-import com.flashcardapp.helper.path.AppPath;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
@@ -19,11 +18,6 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     public void commence(HttpServletRequest request,
                          HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
-        if (wantsHtml(request)) {
-            response.sendRedirect(AppPath.LOGIN + "?expired");
-            return;
-        }
-
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setCharacterEncoding("UTF-8");
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -35,13 +29,5 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
                   "timestamp": "%s"
                 }
                 """.formatted(OffsetDateTime.now()));
-    }
-
-    private boolean wantsHtml(HttpServletRequest request) {
-        if (request.getRequestURI().startsWith("/api/")) {
-            return false;
-        }
-        String accept = request.getHeader("Accept");
-        return accept == null || accept.contains(MediaType.TEXT_HTML_VALUE);
     }
 }

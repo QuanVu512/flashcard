@@ -4,10 +4,10 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,11 +21,13 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(SecurityProperties.DEFAULT_FILTER_ORDER + 1)
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RequestLoggingFilter.class);
     private static final String REQUEST_ID_HEADER = "X-Request-Id";
+    private static final String RENDER_REQUEST_ID_HEADER = "Rndr-Id";
+    private static final int MAX_USER_AGENT_LENGTH = 120;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -59,15 +61,18 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     }
 
     private void writeRequestLog(HttpServletRequest request, HttpServletResponse response, long startedAt) {
-        long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+        long responseTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
         int status = response.getStatus();
-        String message = "HTTP {} {} status={} durationMs={} ip={}";
+        String message = "HTTP {} {} status={} responseTimeMs={} ip={} queryPresent={} requestBytes={} userAgent=\"{}\"";
         Object[] arguments = {
                 request.getMethod(),
                 request.getRequestURI(),
                 status,
-                durationMs,
-                resolveClientIp(request)
+                responseTimeMs,
+                resolveClientIp(request),
+                StringUtils.hasText(request.getQueryString()),
+                request.getContentLengthLong(),
+                summarizeUserAgent(request.getHeader("User-Agent"))
         };
 
         if (status >= 500) {
@@ -80,14 +85,27 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     }
 
     private String resolveRequestId(HttpServletRequest request) {
-        String requestId = request.getHeader(REQUEST_ID_HEADER);
+        String requestId = firstValidRequestId(request.getHeader(REQUEST_ID_HEADER));
+        if (requestId != null) {
+            return requestId;
+        }
+
+        requestId = firstValidRequestId(request.getHeader(RENDER_REQUEST_ID_HEADER));
+        if (requestId != null) {
+            return requestId;
+        }
+
+        return UUID.randomUUID().toString();
+    }
+
+    private String firstValidRequestId(String requestId) {
         if (StringUtils.hasText(requestId)
                 && requestId.length() <= 80
                 && requestId.matches("[A-Za-z0-9._-]+")) {
             return requestId;
         }
 
-        return UUID.randomUUID().toString();
+        return null;
     }
 
     private String resolveClientIp(HttpServletRequest request) {
@@ -108,6 +126,19 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         }
 
         return authentication.getName();
+    }
+
+    private String summarizeUserAgent(String userAgent) {
+        if (!StringUtils.hasText(userAgent)) {
+            return "-";
+        }
+
+        String cleaned = userAgent.replaceAll("[\\r\\n\\t]+", " ").trim();
+        if (cleaned.length() <= MAX_USER_AGENT_LENGTH) {
+            return cleaned;
+        }
+
+        return cleaned.substring(0, MAX_USER_AGENT_LENGTH - 3) + "...";
     }
 
     private void restoreMdcValue(String key, String value) {

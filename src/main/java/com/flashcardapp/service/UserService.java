@@ -24,7 +24,7 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional
-    public void register(RegisterRequest request) {
+    public AppUser registerUser(RegisterRequest request) {
         String email = normalizeEmail(request.getEmail());
         if (appUserRepository.existsByEmailIgnoreCase(email)) {
             throw new UserAlreadyExistsException("Email đã được sử dụng");
@@ -38,17 +38,26 @@ public class UserService implements UserDetailsService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setClient(client);
 
-        appUserRepository.save(user);
+        return appUserRepository.save(user);
     }
 
     @Transactional(readOnly = true)
     public Client currentClient(String email) {
-        Client client = appUserRepository.findByEmailIgnoreCase(email)
+        Client client = appUserRepository.findWithClientByEmailIgnoreCase(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Khong tim thay nguoi dung"))
                 .getClient();
         client.getDisplayName();
         client.getScore();
         return client;
+    }
+
+    @Transactional(readOnly = true)
+    public AppUser currentUser(String email) {
+        AppUser user = appUserRepository.findWithClientByEmailIgnoreCase(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Khong tim thay nguoi dung"));
+        user.getClient().getDisplayName();
+        user.getClient().getScore();
+        return user;
     }
 
     @Transactional

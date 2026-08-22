@@ -9,7 +9,9 @@ SPRING_PROFILES_ACTIVE=prod
 DATABASE_URL=jdbc:postgresql://...
 DATABASE_USERNAME=...
 DATABASE_PASSWORD=...
-SESSION_COOKIE_SECURE=true
+JWT_SECRET=change-this-random-secret-at-least-32-chars
+AUTH_COOKIE_SECURE=true
+AUTH_COOKIE_SAME_SITE=Lax
 ```
 
 ## Optional Azure Translator
@@ -60,12 +62,27 @@ Render tự cấp biến `PORT`, Dockerfile sẽ để Spring Boot đọc port q
 
 Gói free có thể sleep khi không có request. Đây là hành vi bình thường và không phải lỗi app.
 
+## Production Logs
+
+Khi `SPRING_PROFILES_ACTIVE=prod`, app vẫn in log ra console để Render thu thập trong tab `Logs`.
+Đây là nơi nên dùng để debug trên môi trường deploy vì log đi cùng service runtime của Render.
+
+Profile `prod` cũng ghi rolling log vào `${LOG_DIR}/flashcard.log`, mặc định là `logs/flashcard.log`.
+File này hữu ích nếu chạy trên VPS hoặc môi trường có ổ đĩa ổn định. Trên Render, filesystem của container không nên được xem là nơi lưu log dài hạn sau redeploy/restart.
+Nếu cần lưu lâu hơn retention của Render, dùng Log Streams để đẩy log sang dịch vụ ngoài.
+
+Log request của app có dạng:
+
+```text
+HTTP GET /library status=200 responseTimeMs=84 ip=... queryPresent=false requestBytes=-1 userAgent="..."
+```
+
 ## Checklist Trước Khi Deploy
 
 - Database Neon đã tạo và cho phép SSL.
 - `DATABASE_URL` dùng dạng JDBC, có `sslmode=require`.
 - Không commit file `.env`.
-- Production nên để `SPRING_PROFILES_ACTIVE=prod` và `SESSION_COOKIE_SECURE=true`.
+- Production phải để `SPRING_PROFILES_ACTIVE=prod`, khai báo `JWT_SECRET` thật và chỉ phục vụ qua HTTPS để dùng cookie `Secure`.
 - Trên Render đã thêm key Translator/Vision nếu muốn dùng API ngoài.
 - Nếu muốn dùng `/admin`, đã thêm `ADMIN_EMAIL` và `ADMIN_PASSWORD`.
 - Local build qua Maven trước khi push.

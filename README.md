@@ -1,122 +1,232 @@
 # Flashcard Learning App
 
-Ứng dụng web học từ vựng theo phong cách thư viện cá nhân: người dùng tự tạo thư mục, bộ flashcard, học bằng thẻ lật, câu hỏi trắc nghiệm, bài test, game lật thẻ và bảng vẽ nhận dạng chữ viết.
+[![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-7952B3?logo=bootstrap&logoColor=white)](https://getbootstrap.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-ready-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 
-## Tech Stack
+Flashcard Learning App là ứng dụng web tạo và học bộ từ vựng cá nhân. Người dùng có thể sắp xếp flashcard theo thư mục, học bằng nhiều chế độ, làm bài kiểm tra, chơi game ghép thẻ và dùng nhận dạng chữ viết tay.
 
-- Backend: Java 21, Spring Boot 3.3.5, Spring Web, Spring Data JPA, Spring Security, Bean Validation.
-- Database: PostgreSQL/Neon khi deploy, H2 file cho local nhanh.
-- Frontend: Thymeleaf, HTML, CSS, Bootstrap, JavaScript thuần.
-- External APIs: Azure Translator cho gợi ý nghĩa/phiên âm, Azure AI Vision cho nhận dạng chữ viết tay.
-- Deploy: Docker trên Render.
+Frontend là static SPA viết bằng HTML, CSS, Bootstrap và JavaScript thuần. Backend Spring Boot chỉ cung cấp REST API và không render dữ liệu qua Thymeleaf, nhờ đó hai phần có hợp đồng rõ ràng và có thể được triển khai độc lập khi hệ thống mở rộng.
 
-## Tính Năng Chính
+## Tính năng
 
-- Đăng ký, đăng nhập và quản lý phiên bằng Spring Security.
-- Phân quyền `ROLE_USER`/`ROLE_ADMIN`, admin dashboard và khóa/mở tài khoản.
-- CSRF cho form/API ghi dữ liệu, security headers, cookie session HttpOnly/SameSite/Secure khi production.
-- Rate limit nhẹ cho API dịch, OCR và lưu điểm để bảo vệ quota Azure.
-- Tạo, sửa, xóa thư mục học.
-- Tạo, sửa, xóa bộ flashcard gồm từ vựng, phiên âm, nghĩa và ví dụ.
-- Gợi ý nghĩa bằng Azure Translator khi nhập từ vựng.
-- Gợi ý phiên âm Latin cho một số ngôn ngữ Azure hỗ trợ transliteration.
-- Ôn tập bằng flashcard với phím tắt: mũi tên trái/phải và phím cách.
-- Learn mode có trắc nghiệm, đổi chiều từ/nghĩa và bonus round cho câu sai hoặc chưa biết.
-- Test mode có thời gian, số lượng câu và chiều ôn tập.
-- Game lật thẻ có điểm, combo và sound effect.
-- Chế độ viết đáp án bằng bảng vẽ canvas, nhận dạng chữ viết bằng Azure AI Vision OCR.
+- Đăng ký, đăng nhập và đăng xuất an toàn.
+- Thư viện cá nhân với tìm kiếm và thư mục.
+- Tạo, chỉnh sửa và xoá bộ flashcard.
+- Học bằng thẻ lật, câu hỏi lựa chọn hoặc nhập đáp án.
+- Bài kiểm tra tuỳ chỉnh số câu, thời gian và chiều ôn tập.
+- Game ghép cặp có chấm điểm.
+- Gợi ý nghĩa và phiên âm qua Azure Translator.
+- Nhận dạng đáp án viết tay qua Azure AI Vision.
+- Dashboard quản trị, thống kê và khoá/mở tài khoản.
+- Phân quyền `ROLE_USER` và `ROLE_ADMIN`.
 
-## Cấu Trúc Chính
+## Kiến trúc
 
-- `src/main/java/com/flashcardapp/controller`: controller cho auth, thư viện, folder, flashcard set, practice API.
-- `src/main/java/com/flashcardapp/service`: nghiệp vụ người dùng, thư viện, điểm game, dịch và OCR.
-- `src/main/java/com/flashcardapp/helper/security`: helper lấy user hiện tại và filter giới hạn API.
-- `src/main/java/com/flashcardapp/repository`: Spring Data JPA repository.
-- `src/main/java/com/flashcardapp/entity`: entity JPA.
-- `src/main/java/com/flashcardapp/dto`: form object và response object.
-- `src/main/resources/templates`: giao diện Thymeleaf.
-- `src/main/resources/static`: CSS và JavaScript.
-- `src/main/resources/db/migration`: schema tham khảo cho PostgreSQL/Flyway khi muốn khóa schema.
-- `docs`: tài liệu kiến trúc, luồng MVC, build/test và deploy.
-
-## Chạy Local
-
-Không cấu hình gì thêm thì app dùng H2 file local:
-
-```powershell
-.\.tools\apache-maven-3.9.11\bin\mvn.cmd spring-boot:run
+```mermaid
+flowchart LR
+    UI[HTML / CSS / Bootstrap / JavaScript] -->|JSON over REST| API[Spring Boot Controllers]
+    API --> SERVICE[Application Services]
+    SERVICE --> REPO[Spring Data JPA]
+    REPO --> DB[(H2 / PostgreSQL)]
+    SERVICE --> AZURE[Azure Translator / Vision]
 ```
 
-Hoặc dùng Gradle wrapper:
+Controller xử lý HTTP và DTO, service giữ nghiệp vụ và transaction, repository phụ trách truy cập dữ liệu, còn entity đại diện cho mô hình persistence. Frontend được chia theo `core`, `app` và từng `features`, tránh dồn routing, state và nghiệp vụ giao diện vào một file lớn.
+
+### Xác thực và bảo mật
+
+- Spring Security hoạt động stateless với OAuth2 Resource Server và JWT HS256.
+- Backend gửi JWT bằng header `Set-Cookie`; cookie có `HttpOnly`, `SameSite` và `Secure` trong production.
+- Frontend không đọc JWT và không lưu token trong `localStorage` hoặc `sessionStorage`.
+- Các request thay đổi dữ liệu dùng CSRF token qua header `X-XSRF-TOKEN`.
+- API client không chạy trong trình duyệt vẫn có thể dùng `Authorization: Bearer <token>`.
+- Quyền sở hữu dữ liệu được kiểm tra ở service; API quản trị yêu cầu `ROLE_ADMIN`.
+- CSP, chống nhúng iframe, Referrer Policy, Permissions Policy và rate limit cho auth/API tốn quota được cấu hình sẵn.
+
+Xem chi tiết tại [docs/security.md](docs/security.md) và [docs/mvc-flow.md](docs/mvc-flow.md).
+
+## Công nghệ
+
+| Thành phần | Công nghệ |
+| --- | --- |
+| Frontend | HTML5, CSS3, Bootstrap 5.3, JavaScript ES Modules |
+| Backend | Java 21, Spring Boot 3.3.5, Spring Web, Spring Security |
+| Persistence | Spring Data JPA, Hibernate |
+| Database | H2 cho local, PostgreSQL/Neon cho production |
+| Security | OAuth2 Resource Server, JWT, BCrypt, CSRF cookie |
+| Tích hợp | Azure Translator, Azure AI Vision |
+| Build | Gradle Wrapper hoặc Maven |
+| Deploy | Docker, Render |
+
+## Bắt đầu nhanh
+
+### Yêu cầu
+
+- JDK 21
+- Git
+- Docker là tuỳ chọn nếu muốn chạy bằng container
+
+### Cài đặt
+
+```bash
+git clone https://github.com/QuanVu512/flashcard.git
+cd flashcard
+```
+
+Ứng dụng mặc định dùng H2 file nên có thể chạy ngay mà không cần cài database ngoài.
+
+Trên Windows:
 
 ```powershell
 .\gradlew.bat bootRun
 ```
 
-Ứng dụng chạy ở:
+Trên macOS hoặc Linux:
 
-```text
-http://localhost:8000
+```bash
+./gradlew bootRun
 ```
 
-## Cấu Hình Neon
+Mở [http://localhost:8000](http://localhost:8000) và tạo tài khoản đầu tiên.
 
-Khi muốn dùng PostgreSQL/Neon, thêm vào `.env`:
+Nếu dùng Maven đã cài trên máy:
+
+```bash
+mvn spring-boot:run
+```
+
+## Cấu hình
+
+Ứng dụng đọc biến môi trường và file `.env` ở thư mục gốc. Sao chép `.env.example` thành `.env`, sau đó chỉ điền các dịch vụ cần dùng.
+
+| Biến | Bắt buộc | Mô tả |
+| --- | --- | --- |
+| `SPRING_PROFILES_ACTIVE` | Production | Dùng `dev` cho local hoặc `prod` khi deploy |
+| `DATABASE_URL` | Production | JDBC URL của PostgreSQL/Neon |
+| `DATABASE_USERNAME` | Production | Tài khoản database |
+| `DATABASE_PASSWORD` | Production | Mật khẩu database |
+| `JWT_SECRET` hoặc `JWT_BASE64_SECRET` | Production | Secret ngẫu nhiên tối thiểu 32 byte |
+| `AUTH_COOKIE_SECURE` | Không | Mặc định `false` ở dev và `true` ở prod |
+| `AUTH_COOKIE_SAME_SITE` | Không | `Lax`, `Strict` hoặc `None` |
+| `ADMIN_EMAIL` | Không | Email tài khoản được tạo/nâng quyền admin khi khởi động |
+| `ADMIN_PASSWORD` | Không | Mật khẩu bootstrap admin |
+| `AZURE_TRANSLATOR_KEY` | Không | Bật gợi ý dịch khi provider là `azure` |
+| `AZURE_VISION_KEY` | Không | Bật nhận dạng chữ viết khi provider là `azure` |
+
+Không commit `.env`, database local hoặc secret thật. Profile `prod` yêu cầu `JWT_SECRET`/`JWT_BASE64_SECRET` được cấu hình và không dùng secret phát triển mặc định.
+
+### PostgreSQL hoặc Neon
 
 ```properties
-DATABASE_URL=jdbc:postgresql://your-neon-host.neon.tech/your-db?sslmode=require
-DATABASE_USERNAME=your-neon-user
-DATABASE_PASSWORD=your-neon-password
+DATABASE_URL=jdbc:postgresql://host/database?sslmode=require
+DATABASE_USERNAME=your-username
+DATABASE_PASSWORD=your-password
 ```
 
-## Cấu Hình Azure
-
-Translator dùng cho gợi ý nghĩa:
+### Azure Translator
 
 ```properties
 TRANSLATION_PROVIDER=azure
 TRANSLATION_DEFAULT_TARGET=vi
-AZURE_TRANSLATOR_KEY=your-azure-translator-key
+AZURE_TRANSLATOR_KEY=your-key
 AZURE_TRANSLATOR_REGION=global
 AZURE_TRANSLATOR_ENDPOINT=https://api.cognitive.microsofttranslator.com
 ```
 
-Vision dùng cho bảng vẽ nhận dạng chữ viết:
+### Azure AI Vision
 
 ```properties
 HANDWRITING_PROVIDER=azure
-AZURE_VISION_KEY=your-azure-vision-key
-AZURE_VISION_ENDPOINT=https://your-vision-resource.cognitiveservices.azure.com
+AZURE_VISION_KEY=your-key
+AZURE_VISION_ENDPOINT=https://your-resource.cognitiveservices.azure.com
 ```
 
-Sau khi sửa `.env`, cần tắt server và chạy lại.
+### Frontend ở domain riêng
 
-## Cấu Hình Admin Và Bảo Mật
-
-Nếu muốn tạo tài khoản admin khi app khởi động, thêm vào `.env` hoặc Render Environment:
+Khi frontend và backend khác origin, cấu hình chính xác origin của frontend và cho phép cookie:
 
 ```properties
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=change-this-strong-password
-ADMIN_DISPLAY_NAME=Admin
+APP_CORS_ALLOWED_ORIGINS=https://app.example.com
+AUTH_COOKIE_SECURE=true
+AUTH_COOKIE_SAME_SITE=None
 ```
 
-Local có thể để `SESSION_COOKIE_SECURE=false`. Khi deploy HTTPS trên Render, profile `prod` mặc định dùng secure cookie:
+Không dùng wildcard CORS cùng credential.
 
-```properties
-SESSION_TIMEOUT=45m
-SESSION_COOKIE_SECURE=true
-APP_RATE_LIMIT_ENABLED=true
-APP_RATE_LIMIT_API_CAPACITY=120
-APP_RATE_LIMIT_WINDOW_SECONDS=60
+Trong bản frontend được deploy riêng, đặt URL backend trong `index.html`:
+
+```html
+<meta name="flashcard-api-base-url" content="https://api.example.com">
 ```
 
-## Deploy Render
+## REST API chính
 
-Project đã có `Dockerfile` và `render.yaml`. Trên Render, tạo Web Service runtime Docker và khai báo các biến môi trường trong `.env.example`.
+| Method | Endpoint | Chức năng |
+| --- | --- | --- |
+| `POST` | `/api/auth/register` | Tạo tài khoản và phát cookie xác thực |
+| `POST` | `/api/auth/login` | Đăng nhập và phát cookie xác thực |
+| `GET` | `/api/auth/me` | Lấy hồ sơ hiện tại |
+| `POST` | `/api/auth/logout` | Xoá cookie xác thực |
+| `GET` | `/api/library` | Lấy thư viện của người dùng |
+| `GET/POST` | `/api/folders` | Đọc hoặc tạo thư mục |
+| `POST` | `/api/sets` | Tạo bộ thẻ |
+| `GET/PUT/DELETE` | `/api/sets/{id}` | Đọc, cập nhật hoặc xoá bộ thẻ |
+| `GET` | `/api/sets/{id}/learn` | Tạo phiên Learn |
+| `GET` | `/api/sets/{id}/test` | Tạo phiên Test |
+| `GET/PATCH` | `/api/admin/**` | API quản trị |
 
-Render free plan có thể sleep sau một thời gian không dùng. Đây là hành vi bình thường của gói miễn phí.
+Response lỗi API dùng JSON thống nhất với `message`, `status`, `details` và `timestamp`.
 
-## Ghi Chú Portfolio
+## Cấu trúc dự án
 
-Project này phù hợp để trình bày khi xin thực tập vì có đủ luồng thực tế: authentication, CRUD, relational database, external API, deploy Docker, UI tương tác, kiểm thử cơ bản và tài liệu kiến trúc.
+```text
+src/main/java/com/flashcardapp/
+├── config/          # Security, JWT, CORS và configuration properties
+├── controller/      # REST endpoints và SPA fallback
+├── dto/             # Request/response contracts
+├── entity/          # JPA entities
+├── repository/      # Data access
+├── service/         # Business logic và transaction boundaries
+└── helper/          # Security, errors, logging và response utilities
+
+src/main/resources/
+├── static/
+│   ├── js/
+│   │   ├── app/      # Router và global event orchestration
+│   │   ├── core/     # API client, state, navigation và utilities
+│   │   ├── features/ # Auth, library, admin, study, practice và game
+│   │   └── main.js   # Composition root của frontend
+│   └── css/          # Stylesheet của ứng dụng
+└── templates/        # HTML fragments được phục vụ tĩnh qua /views/**
+    ├── admin/        # Giao diện quản trị
+    ├── auth/         # Đăng nhập và đăng ký
+    ├── error/        # Giao diện lỗi phía SPA
+    └── fragments/    # Shell và component tái sử dụng
+```
+
+Thư mục `templates` chỉ dùng để phân loại HTML fragment cho frontend. Project không cài Thymeleaf và backend không truyền `Model` vào các file này.
+
+## Triển khai
+
+Repository có sẵn `Dockerfile` multi-stage và `render.yaml`. Khi triển khai production:
+
+1. Cấu hình PostgreSQL/Neon và secret JWT.
+2. Đặt `SPRING_PROFILES_ACTIVE=prod`.
+3. Chỉ thêm Azure keys nếu bật các tính năng tương ứng.
+4. Không đưa secret vào image hoặc repository.
+
+Hướng dẫn chi tiết: [docs/deploy-render-docker.md](docs/deploy-render-docker.md).
+
+## Tài liệu
+
+- [Nền tảng và phạm vi sản phẩm](docs/project-foundation.md)
+- [Luồng SPA và REST API](docs/mvc-flow.md)
+- [Mô hình bảo mật](docs/security.md)
+- [Quy trình build và kiểm thử](docs/build-test-workflow.md)
+- [Triển khai Docker trên Render](docs/deploy-render-docker.md)
+
+## Đóng góp
+
+Issue và pull request nên mô tả rõ hành vi hiện tại, hành vi mong muốn và phạm vi thay đổi. Giữ controller mỏng, đặt nghiệp vụ trong service, dùng DTO ở biên API và không để frontend phụ thuộc trực tiếp vào entity backend.

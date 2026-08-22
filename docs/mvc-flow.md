@@ -1,74 +1,46 @@
-# Luồng MVC Backend
+# SPA and REST API Flow
 
-Project dùng Spring MVC kết hợp Thymeleaf. Một số trang được render từ server, còn các tính năng tương tác nhỏ gọi API bằng JavaScript.
+Ứng dụng dùng Spring MVC cho REST API và một static SPA. Backend không render Thymeleaf hoặc truyền `Model` vào HTML. JavaScript/CSS nằm trong `src/main/resources/static`; HTML fragment được phân loại trong `src/main/resources/templates` và phục vụ như tài nguyên tĩnh qua `/views/**`.
 
-## Luồng Trang Chính
+## Luồng request
 
-1. Browser gửi request tới Controller.
-2. Controller lấy người dùng hiện tại từ `Authentication`.
-3. Controller gọi Service để xử lý nghiệp vụ.
-4. Service gọi Repository để đọc/ghi database.
-5. Repository trả entity về Service.
-6. Service chuẩn bị DTO hoặc entity đã đủ dữ liệu.
-7. Controller đưa dữ liệu vào Model.
-8. Thymeleaf render HTML trả về browser.
-
-Ví dụ:
-
-- `GET /library`: hiển thị thư viện flashcard.
-- `GET /sets/{id}`: hiển thị chế độ flashcard.
-- `GET /sets/{id}/learn`: hiển thị Learn mode.
-- `GET /sets/{id}/test/setup`: hiển thị màn setup test.
-
-## Luồng API Tương Tác
-
-Một số tính năng dùng `fetch` để không phải reload trang:
-
-1. JavaScript lấy dữ liệu người dùng nhập.
-2. JavaScript gọi API nội bộ của Spring Boot.
-3. Controller nhận request JSON hoặc query param.
-4. Service xử lý nghiệp vụ hoặc gọi API ngoài.
-5. Controller trả JSON cho JavaScript.
-6. JavaScript cập nhật UI.
-
-API hiện có:
-
-- `GET /api/translation/suggest`: gợi ý nghĩa và phiên âm.
-- `POST /api/handwriting/recognize`: nhận dạng chữ viết từ bảng vẽ.
-- `POST /api/games/score`: lưu điểm game.
-
-## Ví Dụ Gợi Ý Dịch
+1. JavaScript gọi endpoint bằng `fetch` với `credentials: "include"`.
+2. Trình duyệt tự gắn cookie JWT; JavaScript không thể đọc cookie `HttpOnly`.
+3. Với request ghi dữ liệu, API client thêm CSRF token vào `X-XSRF-TOKEN`.
+4. OAuth2 Resource Server xác thực JWT và tạo `Authentication`.
+5. Controller bind request DTO, query parameter hoặc path variable.
+6. Controller gọi service để xử lý nghiệp vụ.
+7. Service thực thi transaction và gọi repository.
+8. Controller trả response DTO; Jackson serialize thành JSON.
+9. SPA render dữ liệu nhận được vào HTML.
 
 ```javascript
-fetch("/api/translation/suggest?text=hello", {
-    headers: {
-        Accept: "application/json"
-    },
-    credentials: "same-origin"
+fetch("/api/library", {
+    headers: {Accept: "application/json"},
+    credentials: "include"
 });
 ```
 
-## Ví Dụ Nhận Dạng Chữ Viết
+## Ranh giới các lớp
 
-```javascript
-fetch("/api/handwriting/recognize", {
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json"
-    },
-    credentials: "same-origin",
-    body: JSON.stringify({
-        imageData: canvas.toDataURL("image/png"),
-        language: "zh"
-    })
-});
-```
+- Controller: giao thức HTTP, validation đầu vào và response DTO.
+- Service: nghiệp vụ, transaction, quyền sở hữu dữ liệu và tích hợp Azure.
+- Repository: truy vấn database qua Spring Data JPA.
+- DTO: hợp đồng ổn định giữa frontend và backend.
+- Entity: mô hình persistence, không dùng làm view model cho SPA.
+- `js/core`: API client, state, navigation, template loader và utility dùng chung.
+- `js/app`: router và điều phối sự kiện toàn cục.
+- `js/features`: module giao diện theo từng nghiệp vụ, không phụ thuộc trực tiếp vào entity backend.
+- `templates/auth`, `templates/admin`, `templates/error`: view theo từng nhóm màn hình.
+- `templates/fragments`: shell và component HTML được nhiều feature tái sử dụng.
 
-## Vai Trò Các Lớp
+## Endpoint tiêu biểu
 
-- Controller: nhận request, chọn view/API response.
-- Service: xử lý nghiệp vụ như tạo bộ thẻ, sinh đáp án sai, tính điểm, gọi Azure.
-- Repository: truy vấn database bằng Spring Data JPA.
-- DTO: dữ liệu trao đổi giữa form/API và backend.
-- Entity: ánh xạ bảng database.
+- `GET /api/library`: hồ sơ, thư mục và danh sách flashcard set.
+- `POST /api/sets`: tạo bộ flashcard từ JSON.
+- `PUT /api/sets/{id}`: cập nhật bộ flashcard.
+- `GET /api/sets/{id}/learn`: tạo dữ liệu phiên Learn.
+- `GET /api/sets/{id}/test`: tạo dữ liệu phiên Test.
+- `POST /api/handwriting/recognize`: gửi ảnh canvas đến backend để gọi Azure Vision.
+
+`SpaController` chỉ forward các route giao diện về `index.html`; `FrontendResourceConfig` chỉ ánh xạ `/views/**` tới các HTML fragment. Hai lớp này không lấy entity, không xây `Model` và không chứa nghiệp vụ.

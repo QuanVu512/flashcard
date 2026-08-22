@@ -35,7 +35,9 @@ Chạy app bằng Gradle:
 Kiểm tra cú pháp frontend:
 
 ```powershell
-node --check src\main\resources\static\js\app.js
+Get-ChildItem src\main\resources\static\js -Recurse -Filter *.js | ForEach-Object {
+    node --check $_.FullName
+}
 ```
 
 ## Profile Local
@@ -56,6 +58,7 @@ SPRING_PROFILES_ACTIVE=prod
 DATABASE_URL=jdbc:postgresql://...
 DATABASE_USERNAME=...
 DATABASE_PASSWORD=...
+JWT_SECRET=change-this-random-secret-at-least-32-chars
 ```
 
 Các biến Azure chỉ cần khai báo khi bật gợi ý dịch hoặc nhận dạng chữ viết.
@@ -64,8 +67,10 @@ Các biến Azure chỉ cần khai báo khi bật gợi ý dịch hoặc nhận 
 
 Các test nên ưu tiên:
 
-- Auth pages render.
-- User tạo bộ flashcard.
-- Learn/Test render đúng dữ liệu.
+- SPA routes trả `index.html`.
+- Auth API đăng ký/đăng nhập phát JWT bằng cookie `HttpOnly` và không lộ token trong JSON.
+- Request ghi dữ liệu từ trình duyệt phải có CSRF token hợp lệ.
+- User tạo bộ flashcard qua REST API.
+- Learn/Test trả đúng dữ liệu JSON.
 - API score không nhận điểm âm.
 - API Azure trả lỗi mềm khi thiếu key để app không chết.
