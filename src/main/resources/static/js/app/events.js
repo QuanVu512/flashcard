@@ -1,7 +1,7 @@
 import {navigate, logout} from "../core/navigation.js";
 import {state} from "../core/state.js";
 import {toggleUserStatus} from "../features/admin/admin.js";
-import {handleAuthSubmit} from "../features/auth/auth.js";
+import {handleAuthSubmit, handleOtpResend} from "../features/auth/auth.js";
 import {
     createFolderFromPrompt,
     deleteSetById,
@@ -35,6 +35,11 @@ function onGlobalClick(event) {
     }
     if (event.target.closest("[data-create-folder]")) {
         createFolderFromPrompt().catch(error => renderError(error.message));
+        return;
+    }
+    const resendOtp = event.target.closest("[data-resend-otp]");
+    if (resendOtp) {
+        handleOtpResend(resendOtp);
         return;
     }
 

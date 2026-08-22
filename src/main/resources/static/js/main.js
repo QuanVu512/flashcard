@@ -5,6 +5,8 @@ import {redirectToLogin, renderRoute} from "./app/router.js";
 const templates = [
     "auth/login",
     "auth/register",
+    "auth/otp",
+    "auth/google-link",
     "fragments/shell",
     "library",
     "set-form",

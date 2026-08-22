@@ -1,14 +1,21 @@
 package com.flashcardapp.controller;
 
+import com.flashcardapp.dto.AuthFlowResponse;
 import com.flashcardapp.dto.AuthRequest;
 import com.flashcardapp.dto.AuthResponse;
 import com.flashcardapp.dto.CsrfTokenResponse;
+import com.flashcardapp.dto.OtpResendRequest;
+import com.flashcardapp.dto.OtpVerifyRequest;
 import com.flashcardapp.dto.RegisterRequest;
 import com.flashcardapp.dto.UserProfileResponse;
 import com.flashcardapp.entity.AppUser;
-import com.flashcardapp.helper.security.AuthCookieManager;
-import com.flashcardapp.helper.security.JwtService;
+import com.flashcardapp.entity.AuthMethod;
+import com.flashcardapp.entity.OtpPurpose;
+import com.flashcardapp.service.AuthSessionService;
+import com.flashcardapp.service.OtpService;
+import com.flashcardapp.service.TrustedDeviceService;
 import com.flashcardapp.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,42 +35,78 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final UserService userService;
-    private final JwtService jwtService;
-    private final AuthCookieManager authCookieManager;
     private final AuthenticationManager authenticationManager;
+    private final OtpService otpService;
+    private final TrustedDeviceService trustedDeviceService;
+    private final AuthSessionService authSessionService;
 
     public AuthController(UserService userService,
-                          JwtService jwtService,
-                          AuthCookieManager authCookieManager,
-                          AuthenticationManager authenticationManager) {
+                          AuthenticationManager authenticationManager,
+                          OtpService otpService,
+                          TrustedDeviceService trustedDeviceService,
+                          AuthSessionService authSessionService) {
         this.userService = userService;
-        this.jwtService = jwtService;
-        this.authCookieManager = authCookieManager;
         this.authenticationManager = authenticationManager;
+        this.otpService = otpService;
+        this.trustedDeviceService = trustedDeviceService;
+        this.authSessionService = authSessionService;
     }
 
     @PostMapping("/register")
-    public AuthResponse register(@Valid @RequestBody RegisterRequest request,
-                                 HttpServletResponse response) {
+    public AuthFlowResponse register(@Valid @RequestBody RegisterRequest request,
+                                     HttpServletRequest servletRequest) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new IllegalArgumentException("Mật khẩu xác nhận chưa khớp");
         }
         AppUser user = userService.registerUser(request);
-        UserDetails userDetails = userService.loadUserByUsername(user.getEmail());
-        return authenticate(user, userDetails, response);
+        return otpRequired(otpService.dispatch(user, OtpPurpose.EMAIL_VERIFICATION, servletRequest));
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody AuthRequest request,
-                              HttpServletResponse response) {
+    public AuthFlowResponse login(@Valid @RequestBody AuthRequest request,
+                                  HttpServletRequest servletRequest,
+                                  HttpServletResponse response) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email(), request.password())
         );
         if (!(authentication.getPrincipal() instanceof UserDetails userDetails)) {
             throw new BadCredentialsException("Thông tin đăng nhập không hợp lệ");
         }
+
         AppUser user = userService.currentUser(userDetails.getUsername());
-        return authenticate(user, userDetails, response);
+        if (!user.isEmailVerified()) {
+            return otpRequired(otpService.dispatch(user, OtpPurpose.EMAIL_VERIFICATION, servletRequest));
+        }
+        if (trustedDeviceService.isTrusted(user, servletRequest)) {
+            return AuthFlowResponse.authenticated(
+                    authSessionService.issueSession(user, AuthMethod.PASSWORD, response)
+            );
+        }
+        return otpRequired(otpService.dispatch(user, OtpPurpose.LOGIN, servletRequest));
+    }
+
+    @PostMapping("/otp/verify")
+    public AuthFlowResponse verifyOtp(@Valid @RequestBody OtpVerifyRequest request,
+                                      HttpServletRequest servletRequest,
+                                      HttpServletResponse response) {
+        AppUser user = otpService.verify(request.challengeId(), request.code(), servletRequest);
+        if (request.rememberDevice()) {
+            trustedDeviceService.remember(user, servletRequest, response);
+        }
+        return AuthFlowResponse.authenticated(
+                authSessionService.issueSession(user, AuthMethod.PASSWORD, response)
+        );
+    }
+
+    @PostMapping("/otp/resend")
+    public AuthFlowResponse resendOtp(@Valid @RequestBody OtpResendRequest request,
+                                      HttpServletRequest servletRequest) {
+        return otpRequired(otpService.resend(request.challengeId(), servletRequest));
+    }
+
+    @PostMapping("/refresh")
+    public AuthResponse refresh(HttpServletRequest request, HttpServletResponse response) {
+        return authSessionService.refresh(request, response);
     }
 
     @GetMapping("/me")
@@ -78,18 +121,17 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public void logout(HttpServletResponse response) {
-        authCookieManager.clearAccessToken(response);
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        authSessionService.logout(request, response);
     }
 
-    private AuthResponse authenticate(AppUser user,
-                                      UserDetails userDetails,
-                                      HttpServletResponse response) {
-        long expiresInSeconds = jwtService.expirationSeconds();
-        authCookieManager.writeAccessToken(response, jwtService.generateToken(userDetails), expiresInSeconds);
-        return new AuthResponse(
-                expiresInSeconds,
-                UserProfileResponse.from(user)
+    private AuthFlowResponse otpRequired(OtpService.OtpDispatch dispatch) {
+        return AuthFlowResponse.otpRequired(
+                dispatch.challengeId(),
+                dispatch.maskedEmail(),
+                dispatch.expiresInSeconds(),
+                dispatch.resendAvailableInSeconds(),
+                dispatch.remainingSends()
         );
     }
 }

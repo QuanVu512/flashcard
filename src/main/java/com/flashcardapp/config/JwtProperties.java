@@ -7,8 +7,6 @@ public class JwtProperties {
 
     private String base64Secret;
     private String secret;
-    private long validityInSeconds;
-    private long expirationMinutes = 120;
 
     public String getBase64Secret() {
         return base64Secret;
@@ -26,23 +24,4 @@ public class JwtProperties {
         this.secret = secret;
     }
 
-    public long getValidityInSeconds() {
-        return validityInSeconds;
-    }
-
-    public void setValidityInSeconds(long validityInSeconds) {
-        this.validityInSeconds = validityInSeconds;
-    }
-
-    public long getExpirationMinutes() {
-        return expirationMinutes;
-    }
-
-    public void setExpirationMinutes(long expirationMinutes) {
-        this.expirationMinutes = expirationMinutes;
-    }
-
-    public long validityInSeconds() {
-        return validityInSeconds > 0 ? validityInSeconds : Math.max(1, expirationMinutes) * 60;
-    }
 }

@@ -2,11 +2,15 @@ package com.flashcardapp;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flashcardapp.entity.OtpPurpose;
+import com.flashcardapp.service.OtpMailService;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockCookie;
@@ -18,6 +22,11 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -37,6 +46,9 @@ class FlashcardApplicationTests {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockBean
+    private OtpMailService otpMailService;
 
     @Test
     void contextLoads() {
@@ -159,7 +171,7 @@ class FlashcardApplicationTests {
     }
 
     private Cookie registerAndCookie(String email) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/auth/register")
+        MvcResult registration = mockMvc.perform(post("/api/auth/register")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -171,12 +183,34 @@ class FlashcardApplicationTests {
                                 }
                                 """.formatted(email)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").doesNotExist())
-                .andExpect(jsonPath("$.user.email").value(email))
+                .andExpect(jsonPath("$.status").value("OTP_REQUIRED"))
+                .andExpect(jsonPath("$.challengeId").exists())
                 .andReturn();
+
+        ArgumentCaptor<String> otpCaptor = ArgumentCaptor.forClass(String.class);
+        verify(otpMailService, timeout(5000))
+                .send(eq(email), otpCaptor.capture(), eq(OtpPurpose.EMAIL_VERIFICATION), anyLong());
+        clearInvocations(otpMailService);
+
+        String challengeId = read(registration, "challengeId");
+        MvcResult result = mockMvc.perform(post("/api/auth/otp/verify")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "challengeId": "%s",
+                                  "code": "%s",
+                                  "rememberDevice": false
+                                }
+                                """.formatted(challengeId, otpCaptor.getValue())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AUTHENTICATED"))
+                .andExpect(jsonPath("$.session.user.email").value(email))
+                .andReturn();
+
         MockCookie cookie = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE).stream()
                 .map(MockCookie::parse)
-                .filter(MockCookie::isHttpOnly)
+                .filter(candidate -> "flashcard_access_token".equals(candidate.getName()))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Response không có auth cookie HttpOnly"));
         assertThat(cookie.isHttpOnly()).isTrue();

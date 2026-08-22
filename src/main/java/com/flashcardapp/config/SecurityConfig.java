@@ -4,6 +4,9 @@ import com.flashcardapp.helper.exception.CustomAccessDeniedHandler;
 import com.flashcardapp.helper.exception.CustomAuthenticationEntryPoint;
 import com.flashcardapp.helper.path.SecurityPath;
 import com.flashcardapp.helper.security.BrowserCsrfRequestMatcher;
+import com.flashcardapp.helper.security.GoogleOAuthFailureHandler;
+import com.flashcardapp.helper.security.GoogleOAuthSuccessHandler;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
@@ -28,7 +32,15 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
 
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties({RateLimitProperties.class, JwtProperties.class, AuthCookieProperties.class})
+@EnableConfigurationProperties({
+        RateLimitProperties.class,
+        JwtProperties.class,
+        AuthCookieProperties.class,
+        AuthSessionProperties.class,
+        OtpProperties.class,
+        AuthMailProperties.class,
+        GoogleAuthProperties.class
+})
 public class SecurityConfig {
 
     @Bean
@@ -38,7 +50,10 @@ public class SecurityConfig {
                                                    JwtAuthenticationConverter jwtAuthenticationConverter,
                                                    BearerTokenResolver bearerTokenResolver,
                                                    CsrfTokenRepository csrfTokenRepository,
-                                                   BrowserCsrfRequestMatcher csrfRequestMatcher) throws Exception {
+                                                   BrowserCsrfRequestMatcher csrfRequestMatcher,
+                                                   ObjectProvider<ClientRegistrationRepository> clientRegistrations,
+                                                   GoogleOAuthSuccessHandler googleSuccessHandler,
+                                                   GoogleOAuthFailureHandler googleFailureHandler) throws Exception {
         CsrfTokenRequestAttributeHandler csrfRequestHandler = new CsrfTokenRequestAttributeHandler();
         csrfRequestHandler.setCsrfRequestAttributeName(null);
 
@@ -54,7 +69,7 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .rememberMe(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 )
                 .headers(headers -> headers
                         .contentSecurityPolicy(csp -> csp.policyDirectives(
@@ -88,6 +103,15 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler)
                 );
+
+        ClientRegistrationRepository clientRegistrationRepository = clientRegistrations.getIfAvailable();
+        if (clientRegistrationRepository != null) {
+            http.oauth2Login(oauth2 -> oauth2
+                    .clientRegistrationRepository(clientRegistrationRepository)
+                    .successHandler(googleSuccessHandler)
+                    .failureHandler(googleFailureHandler)
+            );
+        }
         return http.build();
     }
 

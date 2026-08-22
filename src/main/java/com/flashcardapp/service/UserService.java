@@ -2,8 +2,11 @@ package com.flashcardapp.service;
 
 import com.flashcardapp.dto.RegisterRequest;
 import com.flashcardapp.entity.AppUser;
+import com.flashcardapp.entity.AuthIdentity;
+import com.flashcardapp.entity.AuthIdentityProvider;
 import com.flashcardapp.entity.Client;
 import com.flashcardapp.repository.AppUserRepository;
+import com.flashcardapp.repository.AuthIdentityRepository;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -12,14 +15,23 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Locale;
+import java.util.UUID;
+
 @Service
 public class UserService implements UserDetailsService {
 
     private final AppUserRepository appUserRepository;
+    private final AuthIdentityRepository authIdentityRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserService(AppUserRepository appUserRepository, PasswordEncoder passwordEncoder) {
+    public UserService(AppUserRepository appUserRepository,
+                       AuthIdentityRepository authIdentityRepository,
+                       PasswordEncoder passwordEncoder) {
         this.appUserRepository = appUserRepository;
+        this.authIdentityRepository = authIdentityRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -36,9 +48,12 @@ public class UserService implements UserDetailsService {
         AppUser user = new AppUser();
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setEmailVerified(false);
         user.setClient(client);
 
-        return appUserRepository.save(user);
+        AppUser savedUser = appUserRepository.save(user);
+        createLocalIdentityIfMissing(savedUser);
+        return savedUser;
     }
 
     @Transactional(readOnly = true)
@@ -79,9 +94,11 @@ public class UserService implements UserDetailsService {
                     return newUser;
                 });
 
+        boolean newUser = user.getId() == null;
         user.setRole("ROLE_ADMIN");
         user.setEnabled(true);
-        appUserRepository.save(user);
+        AppUser savedUser = appUserRepository.save(user);
+        if (newUser) createLocalIdentityIfMissing(savedUser);
     }
 
     @Transactional
@@ -99,15 +116,57 @@ public class UserService implements UserDetailsService {
         AppUser user = appUserRepository.findByEmailIgnoreCase(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng"));
 
+        String password = user.getPasswordHash() == null ? "{noop}!google-only-account!" : user.getPasswordHash();
         return User.withUsername(user.getEmail())
-                .password(user.getPasswordHash())
+                .password(password)
                 .authorities(user.getRole())
                 .disabled(!user.isEnabled())
                 .build();
     }
 
-    private String normalizeEmail(String email) {
-        return email.trim().toLowerCase();
+    public String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    @Transactional
+    public AppUser markEmailVerified(AppUser user) {
+        if (!user.isEmailVerified()) {
+            user.setEmailVerified(true);
+            appUserRepository.save(user);
+        }
+        authIdentityRepository.findByProviderAndIssuerAndSubject(
+                AuthIdentityProvider.LOCAL,
+                "flashcard",
+                normalizeEmail(user.getEmail())
+        ).ifPresent(identity -> {
+            if (!identity.isEmailVerified()) {
+                identity.setEmailVerified(true);
+                authIdentityRepository.save(identity);
+            }
+        });
+        return user;
+    }
+
+    private void createLocalIdentityIfMissing(AppUser user) {
+        String subject = normalizeEmail(user.getEmail());
+        if (authIdentityRepository.existsByProviderAndIssuerAndSubject(
+                AuthIdentityProvider.LOCAL,
+                "flashcard",
+                subject
+        )) {
+            return;
+        }
+
+        AuthIdentity identity = new AuthIdentity();
+        identity.setId(UUID.randomUUID());
+        identity.setUser(user);
+        identity.setProvider(AuthIdentityProvider.LOCAL);
+        identity.setIssuer("flashcard");
+        identity.setSubject(subject);
+        identity.setProviderEmail(user.getEmail());
+        identity.setEmailVerified(user.isEmailVerified());
+        identity.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
+        authIdentityRepository.save(identity);
     }
 
     private boolean hasText(String value) {

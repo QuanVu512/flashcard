@@ -9,16 +9,32 @@ public final class SecurityPath {
     public static final String AUTH_LOGIN_API = "/api/auth/login";
     public static final String AUTH_REGISTER_API = "/api/auth/register";
     public static final String AUTH_LOGOUT_API = "/api/auth/logout";
+    public static final String AUTH_REFRESH_API = "/api/auth/refresh";
+    public static final String AUTH_OTP_VERIFY_API = "/api/auth/otp/verify";
+    public static final String AUTH_OTP_RESEND_API = "/api/auth/otp/resend";
+    public static final String AUTH_GOOGLE_PATHS = "/api/auth/google/**";
     public static final String CSRF_API = "/api/auth/csrf";
 
     public static final String[] PUBLIC_AUTH_API_PATHS = {
             AUTH_LOGIN_API,
             AUTH_REGISTER_API,
             AUTH_LOGOUT_API,
+            AUTH_REFRESH_API,
+            AUTH_OTP_VERIFY_API,
+            AUTH_OTP_RESEND_API,
+            AUTH_GOOGLE_PATHS,
             CSRF_API
     };
 
-    private static final Set<String> COOKIE_AUTH_SKIP_PATHS = Set.of(PUBLIC_AUTH_API_PATHS);
+    private static final Set<String> COOKIE_AUTH_SKIP_PATHS = Set.of(
+            AUTH_LOGIN_API,
+            AUTH_REGISTER_API,
+            AUTH_LOGOUT_API,
+            AUTH_REFRESH_API,
+            AUTH_OTP_VERIFY_API,
+            AUTH_OTP_RESEND_API,
+            CSRF_API
+    );
 
     public static final String[] PUBLIC_PATHS = {
             "/",
@@ -31,6 +47,8 @@ public final class SecurityPath {
             "/favicon.ico",
             "/error",
             "/error/**",
+            "/oauth2/**",
+            "/login/oauth2/**",
             AppPath.LOGIN,
             AppPath.REGISTER,
             AppPath.ACCESS_DENIED
@@ -50,7 +68,10 @@ public final class SecurityPath {
         if (!contextPath.isEmpty() && requestPath.startsWith(contextPath)) {
             requestPath = requestPath.substring(contextPath.length());
         }
-        return COOKIE_AUTH_SKIP_PATHS.contains(requestPath);
+        return COOKIE_AUTH_SKIP_PATHS.contains(requestPath)
+                || requestPath.startsWith("/api/auth/google/")
+                || requestPath.startsWith("/oauth2/")
+                || requestPath.startsWith("/login/oauth2/");
     }
 
     private SecurityPath() {

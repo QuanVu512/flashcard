@@ -3,6 +3,11 @@
         <a class="auth-logo" href="/login" data-nav="/login" aria-label="Flashcard">F</a>
         <h1>Đăng nhập</h1>
         <p>Tiếp tục học từ vựng của bạn.</p>
+        <a class="btn btn-google" href="/api/auth/google/start" data-google-login>
+            <span class="google-mark" aria-hidden="true">G</span>
+            Tiếp tục với Google
+        </a>
+        <div class="auth-divider"><span>hoặc dùng mật khẩu</span></div>
         <form class="auth-form" data-auth-form="login" novalidate>
             <label class="form-label" for="email">Email</label>
             <input id="email" class="form-control" name="email" type="email" placeholder="example@gmail.com" autocomplete="email" required>

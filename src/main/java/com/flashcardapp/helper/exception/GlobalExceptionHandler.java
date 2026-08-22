@@ -4,15 +4,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.validation.ConstraintViolationException;
 import java.time.OffsetDateTime;
@@ -41,6 +44,33 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<ApiError> handleBadRequest(RuntimeException exception) {
         return buildError(HttpStatus.BAD_REQUEST, exception.getMessage(), List.of());
+    }
+
+    @ExceptionHandler(OtpRateLimitException.class)
+    public ResponseEntity<ApiError> handleOtpRateLimit(OtpRateLimitException exception) {
+        ApiError error = new ApiError(
+                exception.getMessage(),
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                List.of(),
+                OffsetDateTime.now()
+        );
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(exception.getRetryAfterSeconds()));
+        if (exception.isRedirectToLogin()) {
+            response.header("X-Auth-Action", "LOGIN");
+        }
+        return response.body(error);
+    }
+
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<ApiError> handleInvalidJwt() {
+        return buildError(HttpStatus.BAD_REQUEST, "Phiên xác thực tạm thời không hợp lệ hoặc đã hết hạn", List.of());
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException exception) {
+        String message = exception.getReason() == null ? "Yêu cầu chưa thể xử lý" : exception.getReason();
+        return buildError(exception.getStatusCode(), message, List.of());
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -99,7 +129,7 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Có lỗi xảy ra trong hệ thống", List.of());
     }
 
-    private ResponseEntity<ApiError> buildError(HttpStatus status, String message, List<String> details) {
+    private ResponseEntity<ApiError> buildError(HttpStatusCode status, String message, List<String> details) {
         ApiError error = new ApiError(message, status.value(), details, OffsetDateTime.now());
         return ResponseEntity.status(status).body(error);
     }

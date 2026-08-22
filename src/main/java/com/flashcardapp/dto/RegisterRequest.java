@@ -2,6 +2,7 @@ package com.flashcardapp.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class RegisterRequest {
@@ -15,7 +16,10 @@ public class RegisterRequest {
     private String email;
 
     @NotBlank(message = "Vui lòng nhập mật khẩu")
-    @Size(min = 8, max = 128, message = "Mật khẩu cần từ 8 đến 128 ký tự")
+    @Pattern(
+            regexp = "^(?=.*[A-Za-z])(?=.*\\d).{6,32}$",
+            message = "Mật khẩu phải dài từ 6 đến 32 ký tự và có ít nhất 1 chữ cái, 1 chữ số"
+    )
     private String password;
 
     @NotBlank(message = "Vui lòng xác nhận mật khẩu")

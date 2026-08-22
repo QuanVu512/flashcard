@@ -1,0 +1,20 @@
+<main class="auth-wrap">
+    <section class="auth-panel">
+        <a class="auth-logo" href="/login" data-nav="/login" aria-label="Flashcard">F</a>
+        <h1>Xác nhận OTP</h1>
+        <p><strong data-otp-email></strong></p>
+        <form class="auth-form" data-auth-form="otp" novalidate>
+            <label class="form-label" for="otpCode">Mã OTP</label>
+            <input id="otpCode" class="form-control otp-input" name="code" type="text" inputmode="numeric"
+                   pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" required autofocus>
+            <label class="auth-check" for="rememberDevice">
+                <input id="rememberDevice" name="rememberDevice" type="checkbox">
+                <span>Nhớ thiết bị này trong 30 ngày</span>
+            </label>
+            <div class="field-error" data-form-error hidden></div>
+            <button class="btn btn-primary" type="submit">Xác nhận</button>
+        </form>
+        <button class="auth-link-button" type="button" data-resend-otp>Gửi lại mã OTP</button>
+        <div class="auth-switch"><a href="/login" data-nav="/login">Quay lại đăng nhập</a></div>
+    </section>
+</main>

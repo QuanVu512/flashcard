@@ -11,6 +11,7 @@ public record UserProfileResponse(
         String displayName,
         String role,
         boolean enabled,
+        boolean emailVerified,
         long score
 ) {
 
@@ -22,6 +23,7 @@ public record UserProfileResponse(
                 client.getDisplayName(),
                 user.getRole(),
                 user.isEnabled(),
+                user.isEmailVerified(),
                 client.getScore()
         );
     }

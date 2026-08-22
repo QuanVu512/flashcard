@@ -17,7 +17,11 @@ public class CorsConfig {
 
     private static final List<String> DEFAULT_METHODS = List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS");
     private static final List<String> DEFAULT_HEADERS = List.of("Content-Type", "Authorization", "X-XSRF-TOKEN", "X-Requested-With", "X-Request-Id", "Accept", "Origin");
-    private static final List<String> DEFAULT_EXPOSED_HEADERS = List.of("X-Request-Id");
+    private static final List<String> DEFAULT_EXPOSED_HEADERS = List.of(
+            "X-Request-Id",
+            "Retry-After",
+            "X-Auth-Action"
+    );
     private static final long DEFAULT_MAX_AGE_SECONDS = 1800L;
 
     @Bean

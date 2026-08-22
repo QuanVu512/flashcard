@@ -30,6 +30,9 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
     private static final Set<String> LIMITED_API_PATHS = Set.of(
             "/api/auth/login",
             "/api/auth/register",
+            "/api/auth/otp/verify",
+            "/api/auth/otp/resend",
+            "/api/auth/google/link",
             "/api/translation/suggest",
             "/api/handwriting/recognize",
             "/api/games/score"

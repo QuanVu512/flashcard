@@ -3,9 +3,15 @@ package com.flashcardapp.config;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.util.StringUtils;
@@ -19,6 +25,8 @@ import java.util.Base64;
 public class JwtConfig {
 
     private static final MacAlgorithm JWT_ALGORITHM = MacAlgorithm.HS256;
+    private static final String ACCESS_TOKEN_TYPE = "access";
+    private static final String GOOGLE_LINK_TOKEN_TYPE = "google_link";
 
     @Bean
     JwtEncoder jwtEncoder(JwtProperties properties) {
@@ -26,10 +34,38 @@ public class JwtConfig {
     }
 
     @Bean
+    @Primary
     JwtDecoder jwtDecoder(JwtProperties properties) {
-        return NimbusJwtDecoder.withSecretKey(signingKey(properties))
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(signingKey(properties))
                 .macAlgorithm(JWT_ALGORITHM)
                 .build();
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                new JwtTimestampValidator(),
+                tokenTypeValidator(ACCESS_TOKEN_TYPE)
+        ));
+        return decoder;
+    }
+
+    @Bean("googleLinkJwtDecoder")
+    JwtDecoder googleLinkJwtDecoder(JwtProperties properties) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(signingKey(properties))
+                .macAlgorithm(JWT_ALGORITHM)
+                .build();
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                new JwtTimestampValidator(),
+                tokenTypeValidator(GOOGLE_LINK_TOKEN_TYPE)
+        ));
+        return decoder;
+    }
+
+    private OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> tokenTypeValidator(String expectedType) {
+        return jwt -> expectedType.equals(jwt.getClaimAsString("token_type"))
+                ? OAuth2TokenValidatorResult.success()
+                : OAuth2TokenValidatorResult.failure(new OAuth2Error(
+                        "invalid_token",
+                        "Token type is not accepted for this endpoint",
+                        null
+                ));
     }
 
     private SecretKey signingKey(JwtProperties properties) {

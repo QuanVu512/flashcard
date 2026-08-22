@@ -1,7 +1,8 @@
 package com.flashcardapp.dto;
 
 public record AuthResponse(
-        long expiresInSeconds,
+        long accessExpiresInSeconds,
+        long sessionExpiresInSeconds,
         UserProfileResponse user
 ) {
 }

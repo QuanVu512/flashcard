@@ -25,8 +25,11 @@ public class AppUser {
     @Column(nullable = false, unique = true, length = 180)
     private String email;
 
-    @Column(nullable = false)
+    @Column
     private String passwordHash;
+
+    @Column(nullable = false)
+    private boolean emailVerified;
 
     @Column(nullable = false, length = 40)
     private String role = "ROLE_USER";
@@ -59,6 +62,14 @@ public class AppUser {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
     }
 
     public String getRole() {
