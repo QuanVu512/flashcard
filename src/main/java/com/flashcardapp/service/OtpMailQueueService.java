@@ -8,13 +8,11 @@ import com.flashcardapp.entity.OtpMailDeliveryStatus;
 import com.flashcardapp.entity.OtpPurpose;
 import com.flashcardapp.helper.security.OtpCodeCipher;
 import com.flashcardapp.repository.OtpMailDeliveryRepository;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.EnumSet;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -58,9 +56,10 @@ public class OtpMailQueueService {
     }
 
     @Transactional(readOnly = true)
-    public OtpSendQuota quota(UUID userId, LocalDateTime now) {
+    public OtpSendQuota quota(String quotaKeyHash, LocalDateTime now) {
         LocalDateTime windowStart = now.minus(otpProperties.sendWindowDuration());
-        long sentRequests = deliveryRepository.countByUserIdAndCreatedAtGreaterThanEqual(userId, windowStart);
+        long sentRequests = deliveryRepository
+                .countByQuotaKeyHashAndCreatedAtGreaterThanEqual(quotaKeyHash, windowStart);
         int countedRequests = (int) Math.min(Integer.MAX_VALUE, sentRequests);
         int remainingSends = Math.max(0, otpProperties.maxSendsOrDefault() - countedRequests);
         if (remainingSends > 0) {
@@ -68,7 +67,10 @@ public class OtpMailQueueService {
         }
 
         LocalDateTime oldestRequest = deliveryRepository
-                .findFirstByUserIdAndCreatedAtGreaterThanEqualOrderByCreatedAtAsc(userId, windowStart)
+                .findFirstByQuotaKeyHashAndCreatedAtGreaterThanEqualOrderByCreatedAtAsc(
+                        quotaKeyHash,
+                        windowStart
+                )
                 .map(OtpMailDelivery::getCreatedAt)
                 .orElse(now);
         LocalDateTime resetAt = oldestRequest.plus(otpProperties.sendWindowDuration());
@@ -78,13 +80,7 @@ public class OtpMailQueueService {
     @Transactional
     public Optional<ClaimedOtpMail> claimNext() {
         LocalDateTime now = now();
-        return deliveryRepository.findReady(
-                        EnumSet.of(OtpMailDeliveryStatus.PENDING, OtpMailDeliveryStatus.PROCESSING),
-                        now,
-                        PageRequest.of(0, 1)
-                )
-                .stream()
-                .findFirst()
+        return deliveryRepository.findReadyForUpdate(now)
                 .map(delivery -> claim(delivery, now));
     }
 
@@ -130,8 +126,9 @@ public class OtpMailQueueService {
         OtpMailDelivery delivery = new OtpMailDelivery();
         delivery.setId(UUID.randomUUID());
         delivery.setChallenge(challenge);
-        delivery.setUserId(challenge.getUser().getId());
-        delivery.setRecipient(challenge.getUser().getEmail());
+        delivery.setUserId(challenge.getUser() == null ? null : challenge.getUser().getId());
+        delivery.setQuotaKeyHash(challenge.getSubjectKeyHash());
+        delivery.setRecipient(challenge.recipientEmail());
         delivery.setPurpose(challenge.getPurpose());
         delivery.setEncryptedCode(encryptedCode);
         delivery.setStatus(OtpMailDeliveryStatus.PENDING);

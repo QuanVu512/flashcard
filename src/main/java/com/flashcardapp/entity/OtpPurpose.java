@@ -1,6 +1,11 @@
 package com.flashcardapp.entity;
 
 public enum OtpPurpose {
+    REGISTRATION,
     EMAIL_VERIFICATION,
-    LOGIN
+    LOGIN;
+
+    public boolean verifiesEmail() {
+        return this == REGISTRATION || this == EMAIL_VERIFICATION;
+    }
 }

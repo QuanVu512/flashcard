@@ -21,7 +21,7 @@ public class OtpMailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(properties.requiredFrom());
         message.setTo(recipient);
-        message.setSubject(purpose == OtpPurpose.EMAIL_VERIFICATION
+        message.setSubject(purpose.verifiesEmail()
                 ? "Xác minh email Flashcard"
                 : "Mã đăng nhập Flashcard");
         message.setText("""

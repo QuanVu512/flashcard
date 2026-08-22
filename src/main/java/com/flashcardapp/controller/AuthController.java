@@ -13,6 +13,7 @@ import com.flashcardapp.entity.AuthMethod;
 import com.flashcardapp.entity.OtpPurpose;
 import com.flashcardapp.service.AuthSessionService;
 import com.flashcardapp.service.OtpService;
+import com.flashcardapp.service.RegistrationFlowService;
 import com.flashcardapp.service.TrustedDeviceService;
 import com.flashcardapp.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,17 +38,20 @@ public class AuthController {
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
     private final OtpService otpService;
+    private final RegistrationFlowService registrationFlowService;
     private final TrustedDeviceService trustedDeviceService;
     private final AuthSessionService authSessionService;
 
     public AuthController(UserService userService,
                           AuthenticationManager authenticationManager,
                           OtpService otpService,
+                          RegistrationFlowService registrationFlowService,
                           TrustedDeviceService trustedDeviceService,
                           AuthSessionService authSessionService) {
         this.userService = userService;
         this.authenticationManager = authenticationManager;
         this.otpService = otpService;
+        this.registrationFlowService = registrationFlowService;
         this.trustedDeviceService = trustedDeviceService;
         this.authSessionService = authSessionService;
     }
@@ -58,8 +62,7 @@ public class AuthController {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new IllegalArgumentException("Mật khẩu xác nhận chưa khớp");
         }
-        AppUser user = userService.registerUser(request);
-        return otpRequired(otpService.dispatch(user, OtpPurpose.EMAIL_VERIFICATION, servletRequest));
+        return otpRequired(registrationFlowService.begin(request, servletRequest));
     }
 
     @PostMapping("/login")

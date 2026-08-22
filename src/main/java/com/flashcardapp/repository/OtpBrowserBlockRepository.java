@@ -15,10 +15,12 @@ public interface OtpBrowserBlockRepository extends JpaRepository<OtpBrowserBlock
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select block from OtpBrowserBlock block
-            where block.userId = :userId and block.clientKeyHash = :clientKeyHash
+            where block.subjectKeyHash = :subjectKeyHash and block.clientKeyHash = :clientKeyHash
             """)
     Optional<OtpBrowserBlock> findForUpdate(
-            @Param("userId") UUID userId,
+            @Param("subjectKeyHash") String subjectKeyHash,
             @Param("clientKeyHash") String clientKeyHash
     );
+
+    long deleteByBlockedUntilLessThanEqual(java.time.LocalDateTime blockedUntil);
 }

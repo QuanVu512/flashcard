@@ -9,6 +9,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -20,9 +22,14 @@ public class OtpChallenge {
     @Id
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private AppUser user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pending_registration_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private PendingRegistration pendingRegistration;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
@@ -48,6 +55,9 @@ public class OtpChallenge {
     @Column(length = 64)
     private String clientKeyHash;
 
+    @Column(nullable = false, length = 64)
+    private String subjectKeyHash;
+
     private LocalDateTime resendAvailableAt;
 
     public UUID getId() {
@@ -64,6 +74,20 @@ public class OtpChallenge {
 
     public void setUser(AppUser user) {
         this.user = user;
+        if (user != null) {
+            this.pendingRegistration = null;
+        }
+    }
+
+    public PendingRegistration getPendingRegistration() {
+        return pendingRegistration;
+    }
+
+    public void setPendingRegistration(PendingRegistration pendingRegistration) {
+        this.pendingRegistration = pendingRegistration;
+        if (pendingRegistration != null) {
+            this.user = null;
+        }
     }
 
     public OtpPurpose getPurpose() {
@@ -130,11 +154,29 @@ public class OtpChallenge {
         this.clientKeyHash = clientKeyHash;
     }
 
+    public String getSubjectKeyHash() {
+        return subjectKeyHash;
+    }
+
+    public void setSubjectKeyHash(String subjectKeyHash) {
+        this.subjectKeyHash = subjectKeyHash;
+    }
+
     public LocalDateTime getResendAvailableAt() {
         return resendAvailableAt;
     }
 
     public void setResendAvailableAt(LocalDateTime resendAvailableAt) {
         this.resendAvailableAt = resendAvailableAt;
+    }
+
+    public String recipientEmail() {
+        if (user != null) {
+            return user.getEmail();
+        }
+        if (pendingRegistration != null) {
+            return pendingRegistration.getEmail();
+        }
+        throw new IllegalStateException("OTP không có đối tượng nhận");
     }
 }

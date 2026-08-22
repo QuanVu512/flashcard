@@ -12,15 +12,15 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "auth_otp_browser_blocks",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "client_key_hash"})
+        uniqueConstraints = @UniqueConstraint(columnNames = {"subject_key_hash", "client_key_hash"})
 )
 public class OtpBrowserBlock {
 
     @Id
     private UUID id;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    @Column(nullable = false, length = 64)
+    private String subjectKeyHash;
 
     @Column(nullable = false, length = 64)
     private String clientKeyHash;
@@ -39,12 +39,12 @@ public class OtpBrowserBlock {
         this.id = id;
     }
 
-    public UUID getUserId() {
-        return userId;
+    public String getSubjectKeyHash() {
+        return subjectKeyHash;
     }
 
-    public void setUserId(UUID userId) {
-        this.userId = userId;
+    public void setSubjectKeyHash(String subjectKeyHash) {
+        this.subjectKeyHash = subjectKeyHash;
     }
 
     public String getClientKeyHash() {

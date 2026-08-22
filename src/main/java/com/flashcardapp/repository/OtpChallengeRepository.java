@@ -28,8 +28,9 @@ public interface OtpChallengeRepository extends JpaRepository<OtpChallenge, UUID
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select challenge from OtpChallenge challenge
-            join fetch challenge.user appUser
-            join fetch appUser.client
+            left join fetch challenge.user appUser
+            left join fetch appUser.client
+            left join fetch challenge.pendingRegistration
             where challenge.id = :id
             """)
     Optional<OtpChallenge> findForUpdate(@Param("id") UUID id);

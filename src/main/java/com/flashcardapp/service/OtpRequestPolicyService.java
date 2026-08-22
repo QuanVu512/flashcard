@@ -7,6 +7,7 @@ import com.flashcardapp.helper.security.SecureTokenService;
 import com.flashcardapp.repository.OtpBrowserBlockRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -33,8 +34,16 @@ public class OtpRequestPolicyService {
         return secureTokenService.hash(source);
     }
 
-    public void assertNotBlocked(UUID userId, String clientKeyHash, LocalDateTime now) {
-        blockRepository.findForUpdate(userId, clientKeyHash).ifPresent(block -> {
+    public String userSubjectKey(UUID userId) {
+        return secureTokenService.hash("user:" + userId);
+    }
+
+    public String registrationSubjectKey(String normalizedEmail) {
+        return secureTokenService.hash("registration:" + normalizedEmail);
+    }
+
+    public void assertNotBlocked(String subjectKeyHash, String clientKeyHash, LocalDateTime now) {
+        blockRepository.findForUpdate(subjectKeyHash, clientKeyHash).ifPresent(block -> {
             if (block.getBlockedUntil().isAfter(now)) {
                 throw new OtpRateLimitException(
                         "Vui lòng thử lại sau.",
@@ -46,22 +55,27 @@ public class OtpRequestPolicyService {
         });
     }
 
-    public OtpRateLimitException block(UUID userId,
+    public OtpRateLimitException block(String subjectKeyHash,
                                        String clientKeyHash,
                                        LocalDateTime now,
                                        long retryAfterSeconds) {
-        OtpBrowserBlock block = blockRepository.findForUpdate(userId, clientKeyHash)
-                .orElseGet(() -> newBlock(userId, clientKeyHash));
+        OtpBrowserBlock block = blockRepository.findForUpdate(subjectKeyHash, clientKeyHash)
+                .orElseGet(() -> newBlock(subjectKeyHash, clientKeyHash));
         block.setBlockedUntil(now.plus(properties.browserBlockDuration()));
         block.setUpdatedAt(now);
         blockRepository.save(block);
         return new OtpRateLimitException("Vui lòng thử lại sau.", retryAfterSeconds, true);
     }
 
-    private OtpBrowserBlock newBlock(UUID userId, String clientKeyHash) {
+    @Transactional
+    public void cleanupExpired(LocalDateTime now) {
+        blockRepository.deleteByBlockedUntilLessThanEqual(now);
+    }
+
+    private OtpBrowserBlock newBlock(String subjectKeyHash, String clientKeyHash) {
         OtpBrowserBlock block = new OtpBrowserBlock();
         block.setId(UUID.randomUUID());
-        block.setUserId(userId);
+        block.setSubjectKeyHash(subjectKeyHash);
         block.setClientKeyHash(clientKeyHash);
         return block;
     }

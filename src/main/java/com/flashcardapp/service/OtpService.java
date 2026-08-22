@@ -4,6 +4,7 @@ import com.flashcardapp.config.OtpProperties;
 import com.flashcardapp.entity.AppUser;
 import com.flashcardapp.entity.OtpChallenge;
 import com.flashcardapp.entity.OtpPurpose;
+import com.flashcardapp.entity.PendingRegistration;
 import com.flashcardapp.helper.exception.OtpRateLimitException;
 import com.flashcardapp.repository.AppUserRepository;
 import com.flashcardapp.repository.OtpChallengeRepository;
@@ -31,6 +32,7 @@ public class OtpService {
     private final OtpChallengeRepository otpChallengeRepository;
     private final AppUserRepository appUserRepository;
     private final UserService userService;
+    private final PendingRegistrationService pendingRegistrationService;
     private final OtpMailQueueService mailQueueService;
     private final OtpRequestPolicyService requestPolicyService;
     private final OtpProperties properties;
@@ -39,12 +41,14 @@ public class OtpService {
     public OtpService(OtpChallengeRepository otpChallengeRepository,
                       AppUserRepository appUserRepository,
                       UserService userService,
+                      PendingRegistrationService pendingRegistrationService,
                       OtpMailQueueService mailQueueService,
                       OtpRequestPolicyService requestPolicyService,
                       OtpProperties properties) {
         this.otpChallengeRepository = otpChallengeRepository;
         this.appUserRepository = appUserRepository;
         this.userService = userService;
+        this.pendingRegistrationService = pendingRegistrationService;
         this.mailQueueService = mailQueueService;
         this.requestPolicyService = requestPolicyService;
         this.properties = properties;
@@ -57,7 +61,8 @@ public class OtpService {
         LocalDateTime now = now();
         AppUser user = lockUser(requestedUser.getId());
         String clientKeyHash = requestPolicyService.clientKey(request);
-        requestPolicyService.assertNotBlocked(user.getId(), clientKeyHash, now);
+        String subjectKeyHash = requestPolicyService.userSubjectKey(user.getId());
+        requestPolicyService.assertNotBlocked(subjectKeyHash, clientKeyHash, now);
 
         OtpChallenge activeChallenge = otpChallengeRepository
                 .findFirstByUserIdAndPurposeAndClientKeyHashAndConsumedAtIsNullOrderByCreatedAtDesc(
@@ -69,7 +74,7 @@ public class OtpService {
         if (activeChallenge != null && activeChallenge.getExpiresAt().isAfter(now)) {
             return response(
                     activeChallenge,
-                    mailQueueService.quota(user.getId(), now).remainingSends(),
+                    mailQueueService.quota(activeChallenge.getSubjectKeyHash(), now).remainingSends(),
                     now
             );
         }
@@ -78,10 +83,10 @@ public class OtpService {
             otpChallengeRepository.save(activeChallenge);
         }
 
-        OtpMailQueueService.OtpSendQuota quota = mailQueueService.quota(user.getId(), now);
+        OtpMailQueueService.OtpSendQuota quota = mailQueueService.quota(subjectKeyHash, now);
         if (quota.exhausted()) {
             throw requestPolicyService.block(
-                    user.getId(),
+                    subjectKeyHash,
                     clientKeyHash,
                     now,
                     quota.retryAfterSeconds()
@@ -99,7 +104,53 @@ public class OtpService {
         challenge.setSentAt(now);
         challenge.setExpiresAt(now.plus(properties.expirationDuration()));
         challenge.setClientKeyHash(clientKeyHash);
+        challenge.setSubjectKeyHash(subjectKeyHash);
         challenge.setResendAvailableAt(now.plus(properties.initialResendDuration()));
+        otpChallengeRepository.save(challenge);
+
+        mailQueueService.enqueueInitial(challenge, code, now);
+        return response(challenge, quota.remainingSends() - 1, now);
+    }
+
+    @Transactional(noRollbackFor = OtpRateLimitException.class)
+    public OtpDispatch dispatchRegistration(PendingRegistration requestedRegistration,
+                                            HttpServletRequest request) {
+        LocalDateTime now = now();
+        PendingRegistration registration = pendingRegistrationService.lockAttempt(
+                requestedRegistration.getEmail(),
+                requestedRegistration.getId(),
+                now
+        );
+        String clientKeyHash = requestPolicyService.clientKey(request);
+        String subjectKeyHash = requestPolicyService.registrationSubjectKey(registration.getEmail());
+        requestPolicyService.assertNotBlocked(subjectKeyHash, clientKeyHash, now);
+
+        OtpMailQueueService.OtpSendQuota quota = mailQueueService.quota(subjectKeyHash, now);
+        if (quota.exhausted()) {
+            throw requestPolicyService.block(
+                    subjectKeyHash,
+                    clientKeyHash,
+                    now,
+                    quota.retryAfterSeconds()
+            );
+        }
+
+        String code = "%06d".formatted(secureRandom.nextInt(1_000_000));
+        OtpChallenge challenge = new OtpChallenge();
+        challenge.setId(UUID.randomUUID());
+        challenge.setPendingRegistration(registration);
+        challenge.setPurpose(OtpPurpose.REGISTRATION);
+        challenge.setCodeHash(hash(challenge.getId(), code));
+        challenge.setAttempts(0);
+        challenge.setCreatedAt(now);
+        challenge.setSentAt(now);
+        challenge.setExpiresAt(registration.getExpiresAt());
+        challenge.setClientKeyHash(clientKeyHash);
+        challenge.setSubjectKeyHash(subjectKeyHash);
+        challenge.setResendAvailableAt(earlier(
+                now.plus(properties.initialResendDuration()),
+                registration.getExpiresAt()
+        ));
         otpChallengeRepository.save(challenge);
 
         mailQueueService.enqueueInitial(challenge, code, now);
@@ -110,12 +161,14 @@ public class OtpService {
     public OtpDispatch resend(UUID challengeId, HttpServletRequest request) {
         OtpChallenge existing = otpChallengeRepository.findById(challengeId)
                 .orElseThrow(() -> new IllegalArgumentException("Phiên OTP không tồn tại"));
-        AppUser user = lockUser(existing.getUser().getId());
+        lockSubject(existing, now());
         OtpChallenge challenge = lockedChallenge(challengeId);
         LocalDateTime now = now();
         String clientKeyHash = requestPolicyService.clientKey(request);
         assertSameClient(challenge, clientKeyHash);
-        requestPolicyService.assertNotBlocked(user.getId(), clientKeyHash, now);
+        assertActiveRegistration(challenge, now);
+        String subjectKeyHash = challenge.getSubjectKeyHash();
+        requestPolicyService.assertNotBlocked(subjectKeyHash, clientKeyHash, now);
 
         if (challenge.getConsumedAt() != null || !challenge.getExpiresAt().isAfter(now)) {
             throw new IllegalArgumentException("OTP đã hết hạn, vui lòng đăng nhập lại");
@@ -123,17 +176,17 @@ public class OtpService {
         if (challenge.getResendAvailableAt() != null
                 && challenge.getResendAvailableAt().isAfter(now)) {
             throw requestPolicyService.block(
-                    user.getId(),
+                    subjectKeyHash,
                     clientKeyHash,
                     now,
                     properties.browserBlockDuration().toSeconds()
             );
         }
 
-        OtpMailQueueService.OtpSendQuota quota = mailQueueService.quota(user.getId(), now);
+        OtpMailQueueService.OtpSendQuota quota = mailQueueService.quota(subjectKeyHash, now);
         if (quota.exhausted()) {
             throw requestPolicyService.block(
-                    user.getId(),
+                    subjectKeyHash,
                     clientKeyHash,
                     now,
                     quota.retryAfterSeconds()
@@ -141,23 +194,31 @@ public class OtpService {
         }
 
         challenge.setSentAt(now);
-        challenge.setExpiresAt(now.plus(properties.expirationDuration()));
-        challenge.setResendAvailableAt(now.plus(properties.resendDuration()));
+        LocalDateTime nextExpiration = now.plus(properties.expirationDuration());
+        if (challenge.getPendingRegistration() != null) {
+            nextExpiration = earlier(nextExpiration, challenge.getPendingRegistration().getExpiresAt());
+        }
+        challenge.setExpiresAt(nextExpiration);
+        challenge.setResendAvailableAt(earlier(
+                now.plus(properties.resendDuration()),
+                nextExpiration
+        ));
         otpChallengeRepository.save(challenge);
         mailQueueService.enqueueResend(challenge, now);
         return response(challenge, quota.remainingSends() - 1, now);
     }
 
-    @Transactional(noRollbackFor = OtpRateLimitException.class)
+    @Transactional(noRollbackFor = {OtpRateLimitException.class, IllegalArgumentException.class})
     public AppUser verify(UUID challengeId, String code, HttpServletRequest request) {
         OtpChallenge existing = otpChallengeRepository.findById(challengeId)
                 .orElseThrow(() -> new IllegalArgumentException("Phiên OTP không tồn tại"));
-        AppUser lockedUser = lockUser(existing.getUser().getId());
+        lockSubject(existing, now());
         OtpChallenge challenge = lockedChallenge(challengeId);
         LocalDateTime now = now();
         String clientKeyHash = requestPolicyService.clientKey(request);
         assertSameClient(challenge, clientKeyHash);
-        requestPolicyService.assertNotBlocked(lockedUser.getId(), clientKeyHash, now);
+        assertActiveRegistration(challenge, now);
+        requestPolicyService.assertNotBlocked(challenge.getSubjectKeyHash(), clientKeyHash, now);
         if (challenge.getConsumedAt() != null || !challenge.getExpiresAt().isAfter(now)) {
             throw new IllegalArgumentException("OTP đã hết hạn, vui lòng yêu cầu mã mới");
         }
@@ -178,11 +239,34 @@ public class OtpService {
 
         challenge.setConsumedAt(now);
         otpChallengeRepository.save(challenge);
+        if (challenge.getPurpose() == OtpPurpose.REGISTRATION) {
+            return pendingRegistrationService.complete(challenge.getPendingRegistration(), now);
+        }
         AppUser user = challenge.getUser();
         if (challenge.getPurpose() == OtpPurpose.EMAIL_VERIFICATION && !user.isEmailVerified()) {
             userService.markEmailVerified(user);
         }
         return user;
+    }
+
+    private void lockSubject(OtpChallenge challenge, LocalDateTime now) {
+        if (challenge.getPendingRegistration() != null) {
+            PendingRegistration registration = challenge.getPendingRegistration();
+            pendingRegistrationService.lockAttempt(registration.getEmail(), registration.getId(), now);
+            return;
+        }
+        if (challenge.getUser() != null) {
+            lockUser(challenge.getUser().getId());
+            return;
+        }
+        throw new IllegalArgumentException("Phiên OTP không có đối tượng xác thực");
+    }
+
+    private void assertActiveRegistration(OtpChallenge challenge, LocalDateTime now) {
+        PendingRegistration registration = challenge.getPendingRegistration();
+        if (registration != null && !registration.isActiveAt(now)) {
+            throw new IllegalArgumentException("Yêu cầu đăng ký đã hết hạn hoặc không còn hiệu lực");
+        }
     }
 
     private AppUser lockUser(UUID userId) {
@@ -216,7 +300,7 @@ public class OtpService {
                 : secondsUntil(now, challenge.getResendAvailableAt());
         return new OtpDispatch(
                 challenge.getId(),
-                maskEmail(challenge.getUser().getEmail()),
+                maskEmail(challenge.recipientEmail()),
                 expiresIn,
                 resendAvailableIn,
                 Math.max(0, remainingSends)
@@ -250,6 +334,10 @@ public class OtpService {
 
     private LocalDateTime now() {
         return LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    private LocalDateTime earlier(LocalDateTime first, LocalDateTime second) {
+        return first.isBefore(second) ? first : second;
     }
 
     public record OtpDispatch(

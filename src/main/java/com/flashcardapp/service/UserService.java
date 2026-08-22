@@ -1,10 +1,10 @@
 package com.flashcardapp.service;
 
-import com.flashcardapp.dto.RegisterRequest;
 import com.flashcardapp.entity.AppUser;
 import com.flashcardapp.entity.AuthIdentity;
 import com.flashcardapp.entity.AuthIdentityProvider;
 import com.flashcardapp.entity.Client;
+import com.flashcardapp.entity.PendingRegistration;
 import com.flashcardapp.repository.AppUserRepository;
 import com.flashcardapp.repository.AuthIdentityRepository;
 import org.springframework.security.core.userdetails.User;
@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -35,24 +36,20 @@ public class UserService implements UserDetailsService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    @Transactional
-    public AppUser registerUser(RegisterRequest request) {
-        String email = normalizeEmail(request.getEmail());
-        if (appUserRepository.existsByEmailIgnoreCase(email)) {
-            throw new UserAlreadyExistsException("Email đã được sử dụng");
-        }
-
+    @Transactional(propagation = Propagation.MANDATORY)
+    public AppUser createVerifiedLocalUser(PendingRegistration registration) {
         Client client = new Client();
-        client.setDisplayName(request.getDisplayName().trim());
+        client.setDisplayName(registration.getDisplayName());
 
         AppUser user = new AppUser();
-        user.setEmail(email);
-        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setEmailVerified(false);
+        user.setEmail(registration.getEmail());
+        user.setPasswordHash(registration.getPasswordHash());
+        user.setEmailVerified(true);
         user.setClient(client);
 
-        AppUser savedUser = appUserRepository.save(user);
+        AppUser savedUser = appUserRepository.saveAndFlush(user);
         createLocalIdentityIfMissing(savedUser);
+        authIdentityRepository.flush();
         return savedUser;
     }
 

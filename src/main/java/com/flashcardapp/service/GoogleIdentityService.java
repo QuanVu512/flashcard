@@ -23,18 +23,22 @@ public class GoogleIdentityService {
     private final AuthIdentityRepository authIdentityRepository;
     private final AppUserRepository appUserRepository;
     private final UserService userService;
+    private final PendingRegistrationService pendingRegistrationService;
 
     public GoogleIdentityService(AuthIdentityRepository authIdentityRepository,
                                  AppUserRepository appUserRepository,
-                                 UserService userService) {
+                                 UserService userService,
+                                 PendingRegistrationService pendingRegistrationService) {
         this.authIdentityRepository = authIdentityRepository;
         this.appUserRepository = appUserRepository;
         this.userService = userService;
+        this.pendingRegistrationService = pendingRegistrationService;
     }
 
     @Transactional
     public GoogleLoginResult resolve(OidcUser oidcUser) {
         GoogleProfile profile = profile(oidcUser);
+        pendingRegistrationService.invalidateActive(profile.email());
         AuthIdentity existingIdentity = authIdentityRepository
                 .findByProviderAndIssuerAndSubject(
                         AuthIdentityProvider.GOOGLE,

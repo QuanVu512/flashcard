@@ -9,6 +9,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -22,10 +24,14 @@ public class OtpMailDelivery {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "challenge_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private OtpChallenge challenge;
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id")
     private UUID userId;
+
+    @Column(nullable = false, length = 64)
+    private String quotaKeyHash;
 
     @Column(nullable = false, length = 180)
     private String recipient;
@@ -77,6 +83,14 @@ public class OtpMailDelivery {
 
     public void setUserId(UUID userId) {
         this.userId = userId;
+    }
+
+    public String getQuotaKeyHash() {
+        return quotaKeyHash;
+    }
+
+    public void setQuotaKeyHash(String quotaKeyHash) {
+        this.quotaKeyHash = quotaKeyHash;
     }
 
     public String getRecipient() {

@@ -189,7 +189,7 @@ class FlashcardApplicationTests {
 
         ArgumentCaptor<String> otpCaptor = ArgumentCaptor.forClass(String.class);
         verify(otpMailService, timeout(5000))
-                .send(eq(email), otpCaptor.capture(), eq(OtpPurpose.EMAIL_VERIFICATION), anyLong());
+                .send(eq(email), otpCaptor.capture(), eq(OtpPurpose.REGISTRATION), anyLong());
         clearInvocations(otpMailService);
 
         String challengeId = read(registration, "challengeId");
