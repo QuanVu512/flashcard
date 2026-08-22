@@ -12,8 +12,8 @@ Flashcard Learning App là web học từ vựng cá nhân, tập trung vào m�
 
 ## Module Backend
 
-- `auth`: đăng ký, đăng nhập JWT và quản lý user hiện tại.
-- `security`: phân quyền role, stateless JWT, security headers, rate limit và xử lý 401/403.
+- `auth`: đăng ký, OTP email, Google OpenID Connect, thiết bị tin cậy và quản lý phiên.
+- `security`: phân quyền role, access JWT ngắn hạn, refresh token xoay vòng, security headers, rate limit và xử lý 401/403.
 - `admin`: dashboard quản trị user, thống kê hệ thống và khóa/mở tài khoản.
 - `library`: thư viện cá nhân, tìm kiếm bộ flashcard.
 - `folder`: chia chương/bài học bằng thư mục.
@@ -32,7 +32,7 @@ Flashcard Learning App là web học từ vựng cá nhân, tập trung vào m�
 - `js/app` chứa router và điều phối sự kiện toàn cục.
 - `js/features` tách riêng auth, library, admin, study, practice, handwriting và game.
 - `templates/auth`, `templates/admin`, `templates/error` và `templates/fragments` phân loại HTML theo trách nhiệm; các file này được phục vụ tĩnh, không dùng Thymeleaf.
-- JWT nằm trong cookie `HttpOnly`; frontend không đọc hoặc lưu access token.
+- Access JWT, refresh token và token thiết bị nằm trong cookie `HttpOnly`; frontend không đọc hoặc lưu credential.
 
 ## Database
 
@@ -41,6 +41,10 @@ Database chính khi deploy là PostgreSQL/Neon. Local có thể dùng H2 file đ
 Bảng chính:
 
 - `users`: tài khoản đăng nhập.
+- `auth_identities`: danh tính local/Google liên kết với tài khoản.
+- `auth_refresh_sessions`: phiên 3 ngày hoặc 30 ngày với token được hash.
+- `auth_otp_challenges`: OTP dùng một lần và thời hạn xác minh.
+- `auth_trusted_devices`: thiết bị được bỏ qua OTP trong 30 ngày.
 - `clients`: hồ sơ người dùng và điểm tích lũy.
 - `folders`: thư mục học của từng user.
 - `flashcard_sets`: bộ flashcard.

@@ -1,65 +1,62 @@
 # Security Model
 
-Flashcard dùng Spring Security theo mô hình REST stateless. Spring OAuth2 Resource Server xác thực JWT, còn trình duyệt nhận access token qua cookie bảo mật thay vì để JavaScript quản lý token.
+Flashcard dùng Spring Security với hai phương thức đăng nhập: Google OpenID Connect và email/mật khẩu có OTP. Phiên ứng dụng vẫn do backend phát hành; Google không thay thế database người dùng và không giữ dữ liệu flashcard.
 
-## Luồng xác thực
+## Phiên đăng nhập
 
-1. Frontend lấy CSRF token từ `GET /api/auth/csrf`.
-2. Frontend gửi thông tin đăng nhập đến `POST /api/auth/login` hoặc `POST /api/auth/register`.
-3. Backend xác thực mật khẩu bằng BCrypt và ký JWT HS256.
-4. JWT được trả qua header `Set-Cookie` với `HttpOnly`, `SameSite`, `Path=/` và `Secure` trong production.
-5. `CookieBearerTokenResolver` lấy JWT từ cookie; OAuth2 Resource Server kiểm tra chữ ký, thời hạn và role.
-6. Frontend gọi `GET /api/auth/me` khi tải trang để khôi phục thông tin hiển thị của phiên.
-7. `POST /api/auth/logout` trả cookie hết hạn để xoá JWT khỏi trình duyệt.
+1. Access token là JWT HS256 sống ngắn, mặc định 15 phút.
+2. Refresh token là chuỗi ngẫu nhiên, chỉ bản hash SHA-256 được lưu trong `auth_refresh_sessions`.
+3. Mỗi lần refresh, token cũ bị thu hồi và token mới giữ nguyên thời điểm hết hạn tuyệt đối.
+4. Phiên mật khẩu hết hạn sau 3 ngày; phiên bắt đầu từ Google hết hạn sau 30 ngày.
+5. Token được gửi bằng cookie `HttpOnly`; JavaScript không đọc token và không lưu credential trong `localStorage` hoặc `sessionStorage`.
+6. Spring OAuth2 Resource Server chỉ chấp nhận JWT có claim `token_type=access`. Token tạm dùng để liên kết Google không thể thay cho access token.
 
-JWT không xuất hiện trong response JSON và không được lưu trong `localStorage` hoặc `sessionStorage`. API client tin cậy vẫn có thể gửi Bearer token trong header `Authorization`.
+HTTP session chỉ được tạo tạm thời để Spring Security lưu OAuth authorization request trong lúc chuyển hướng sang Google. Session này bị vô hiệu ngay khi callback thành công hoặc thất bại.
 
-## CSRF
+## Đăng nhập email và OTP
 
-Vì trình duyệt tự gửi cookie xác thực, các method thay đổi dữ liệu được bảo vệ bằng CSRF double-submit cookie. Frontend đọc CSRF token riêng và gửi lại qua `X-XSRF-TOKEN`. CSRF token không phải credential đăng nhập.
+1. Mật khẩu được kiểm tra bằng BCrypt.
+2. Email chưa xác minh luôn phải hoàn tất OTP trước khi được cấp phiên.
+3. Thiết bị chưa tin cậy phải nhập OTP sau khi mật khẩu đúng.
+4. OTP gồm 6 chữ số, mặc định sống 5 phút, chỉ dùng một lần và bị khóa sau số lần nhập sai cấu hình.
+5. Database chỉ lưu HMAC-SHA256 của OTP với secret riêng `AUTH_OTP_HASH_SECRET`; mã rõ không được ghi log.
+6. Gửi lại OTP có thời gian chờ và endpoint được rate limit.
 
-Các method an toàn (`GET`, `HEAD`, `OPTIONS`, `TRACE`) không yêu cầu CSRF token. Login, register và logout vẫn yêu cầu CSRF vì đều là request ghi dữ liệu. Request dùng Bearer token rõ ràng trong header không cần CSRF vì trình duyệt không tự gắn credential này.
+Checkbox **Nhớ thiết bị trong 30 ngày** tạo một cookie ngẫu nhiên `HttpOnly` và lưu bản hash trong `auth_trusted_devices`. Nó chỉ bỏ qua OTP cho đúng người dùng và User-Agent đó. Phiên mật khẩu vẫn hết hạn sau 3 ngày, vì vậy người dùng phải nhập lại mật khẩu nhưng không cần OTP trong thời gian thiết bị còn tin cậy.
 
-## Phân quyền
+## Google và bảo toàn tài khoản cũ
 
-- `/api/auth/login`, `/api/auth/register`, `/api/auth/logout` và `/api/auth/csrf` là endpoint công khai.
-- Các endpoint `/api/**` còn lại yêu cầu JWT hợp lệ.
-- `/api/admin/**` yêu cầu `ROLE_ADMIN` và được bảo vệ thêm bằng method security.
-- Service kiểm tra quyền sở hữu folder và flashcard set, tránh truy cập dữ liệu của người dùng khác chỉ bằng cách thay UUID.
+Google identity được định danh bằng bộ ba `provider + issuer + subject`, không chỉ bằng email.
 
-## Cấu hình cookie
+- Identity đã liên kết đăng nhập đúng `user_id` cũ.
+- Google email chưa tồn tại tạo người dùng mới với email đã xác minh.
+- Google email trùng tài khoản local nhưng chưa liên kết không bị tự động gộp. Backend phát token liên kết tạm 10 phút; người dùng phải nhập đúng mật khẩu local rồi mới thêm identity Google.
+- Vì liên kết giữ nguyên `users.id` và `client_id`, folder, flashcard set, điểm và dữ liệu hiện có không thay đổi.
+
+## Cookie và CSRF
+
+Các cookie xác thực gồm access token, refresh token, trusted device và token liên kết tạm. Tất cả đều có `HttpOnly`, `Path=/`, `SameSite` và `Secure` trong production.
 
 ```properties
-AUTH_COOKIE_NAME=flashcard_access_token
 AUTH_COOKIE_SECURE=true
 AUTH_COOKIE_SAME_SITE=Lax
 ```
 
-- Local HTTP dùng `AUTH_COOKIE_SECURE=false`.
-- Production HTTPS dùng `AUTH_COOKIE_SECURE=true`.
-- Nếu frontend nằm ở site khác, dùng `SameSite=None`, bắt buộc bật `Secure` và chỉ định CORS origin chính xác.
-- Không đặt `Domain`, vì vậy cookie mặc định là host-only.
+Vì trình duyệt tự gửi cookie, các method thay đổi dữ liệu dùng CSRF token qua header `X-XSRF-TOKEN`. CSRF token không phải credential đăng nhập. Nếu frontend nằm khác site, dùng HTTPS, `SameSite=None`, `Secure=true` và CORS origin cụ thể; không kết hợp credential với wildcard origin.
 
-## JWT secret
-
-Production bắt buộc cấu hình một trong hai biến:
+## Secrets production
 
 ```properties
 JWT_SECRET=random-secret-at-least-32-bytes
-# hoặc
-JWT_BASE64_SECRET=base64-encoded-random-secret
+AUTH_OTP_HASH_SECRET=different-random-secret-at-least-32-bytes
 ```
 
-Không commit secret thật. Profile `prod` không dùng secret phát triển mặc định.
+Có thể dùng `JWT_BASE64_SECRET` thay cho `JWT_SECRET`. Hai secret JWT và OTP phải độc lập, không commit vào repository và không đặt trong frontend.
 
 ## Các lớp bảo vệ bổ sung
 
 - Content Security Policy, frame deny, same-origin referrer policy và Permissions Policy.
-- JSON error response cho 401/403 và lỗi API.
-- Rate limit cho login, register, dịch, OCR và ghi điểm để bảo vệ tài khoản/quota.
-- Production ẩn stack trace và binding details khỏi response.
-- CORS credential chỉ mở cho origin được cấu hình, không dùng wildcard.
-
-## OAuth2 mở rộng
-
-Hiện tại ứng dụng tự phát hành JWT và dùng Spring OAuth2 Resource Server để xác thực. Dependency OAuth2 Client là nền tảng cho đăng nhập Google trong tương lai, nhưng provider login chưa được bật mặc định.
+- JSON error response thống nhất cho 400, 401, 403 và lỗi API.
+- Rate limit cho login, register, OTP, liên kết Google và API tốn quota.
+- Production ẩn stack trace và binding details.
+- Quyền sở hữu dữ liệu được kiểm tra ở service; `/api/admin/**` yêu cầu `ROLE_ADMIN`.

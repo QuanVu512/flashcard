@@ -11,7 +11,8 @@ Frontend là static SPA viết bằng HTML, CSS, Bootstrap và JavaScript thuầ
 
 ## Tính năng
 
-- Đăng ký, đăng nhập và đăng xuất an toàn.
+- Đăng nhập bằng Google hoặc email/mật khẩu có xác minh OTP.
+- Thiết bị tin cậy 30 ngày, phiên mật khẩu 3 ngày và phiên Google 30 ngày.
 - Thư viện cá nhân với tìm kiếm và thư mục.
 - Tạo, chỉnh sửa và xoá bộ flashcard.
 - Học bằng thẻ lật, câu hỏi lựa chọn hoặc nhập đáp án.
@@ -31,17 +32,21 @@ flowchart LR
     SERVICE --> REPO[Spring Data JPA]
     REPO --> DB[(H2 / PostgreSQL)]
     SERVICE --> AZURE[Azure Translator / Vision]
+    SERVICE --> SMTP[SMTP email]
+    UI --> GOOGLE[Google OpenID Connect]
+    GOOGLE -->|OAuth callback| API
 ```
 
 Controller xử lý HTTP và DTO, service giữ nghiệp vụ và transaction, repository phụ trách truy cập dữ liệu, còn entity đại diện cho mô hình persistence. Frontend được chia theo `core`, `app` và từng `features`, tránh dồn routing, state và nghiệp vụ giao diện vào một file lớn.
 
 ### Xác thực và bảo mật
 
-- Spring Security hoạt động stateless với OAuth2 Resource Server và JWT HS256.
-- Backend gửi JWT bằng header `Set-Cookie`; cookie có `HttpOnly`, `SameSite` và `Secure` trong production.
+- Phiên ứng dụng dùng OAuth2 Resource Server, access JWT HS256 15 phút và refresh token xoay vòng lưu dạng hash trong database. HTTP session chỉ tồn tại tạm thời trong lúc bắt tay Google OAuth.
+- Backend gửi access JWT, refresh token và token thiết bị bằng header `Set-Cookie`; cookie có `HttpOnly`, `SameSite` và `Secure` trong production.
 - Frontend không đọc JWT và không lưu token trong `localStorage` hoặc `sessionStorage`.
+- Đăng nhập mật khẩu yêu cầu OTP email trên thiết bị chưa tin cậy. Mã OTP hết hạn, chỉ dùng một lần, bị giới hạn số lần thử và chỉ lưu HMAC trong database.
+- Google được liên kết bằng `issuer + subject`; email trùng không bị tự động gộp. Tài khoản cũ phải xác nhận mật khẩu trước khi liên kết, nên giữ nguyên `user_id` và dữ liệu học tập.
 - Các request thay đổi dữ liệu dùng CSRF token qua header `X-XSRF-TOKEN`.
-- API client không chạy trong trình duyệt vẫn có thể dùng `Authorization: Bearer <token>`.
 - Quyền sở hữu dữ liệu được kiểm tra ở service; API quản trị yêu cầu `ROLE_ADMIN`.
 - CSP, chống nhúng iframe, Referrer Policy, Permissions Policy và rate limit cho auth/API tốn quota được cấu hình sẵn.
 
@@ -55,8 +60,8 @@ Xem chi tiết tại [docs/security.md](docs/security.md) và [docs/mvc-flow.md]
 | Backend | Java 21, Spring Boot 3.3.5, Spring Web, Spring Security |
 | Persistence | Spring Data JPA, Hibernate |
 | Database | H2 cho local, PostgreSQL/Neon cho production |
-| Security | OAuth2 Resource Server, JWT, BCrypt, CSRF cookie |
-| Tích hợp | Azure Translator, Azure AI Vision |
+| Security | OAuth2 Client/Resource Server, OpenID Connect, JWT, BCrypt, OTP, CSRF |
+| Tích hợp | Google Identity, SMTP, Azure Translator, Azure AI Vision |
 | Build | Gradle Wrapper hoặc Maven |
 | Deploy | Docker, Render |
 
@@ -75,7 +80,7 @@ git clone https://github.com/QuanVu512/flashcard.git
 cd flashcard
 ```
 
-Ứng dụng mặc định dùng H2 file nên có thể chạy ngay mà không cần cài database ngoài.
+Ứng dụng mặc định dùng H2 file nên không cần cài database ngoài. Để đăng ký và đăng nhập bằng mật khẩu, hãy cấu hình SMTP theo mục bên dưới trước khi tạo tài khoản.
 
 Trên Windows:
 
@@ -108,6 +113,13 @@ mvn spring-boot:run
 | `DATABASE_USERNAME` | Production | Tài khoản database |
 | `DATABASE_PASSWORD` | Production | Mật khẩu database |
 | `JWT_SECRET` hoặc `JWT_BASE64_SECRET` | Production | Secret ngẫu nhiên tối thiểu 32 byte |
+| `AUTH_OTP_HASH_SECRET` | Có | Secret riêng tối thiểu 32 byte để HMAC mã OTP |
+| `AUTH_MAIL_ENABLED` | Có với đăng nhập mật khẩu | Bật gửi OTP qua SMTP |
+| `AUTH_MAIL_FROM` | Có với SMTP | Địa chỉ người gửi OTP |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | Có với SMTP | Tài khoản và mật khẩu SMTP; Gmail dùng App Password |
+| `GOOGLE_AUTH_ENABLED` | Không | Bật đăng nhập Google |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Khi bật Google | OAuth 2.0 Web Client trên Google Auth Platform |
+| `APP_FRONTEND_BASE_URL` | Khi frontend khác origin | Origin frontend để callback Google quay lại đúng SPA |
 | `AUTH_COOKIE_SECURE` | Không | Mặc định `false` ở dev và `true` ở prod |
 | `AUTH_COOKIE_SAME_SITE` | Không | `Lax`, `Strict` hoặc `None` |
 | `ADMIN_EMAIL` | Không | Email tài khoản được tạo/nâng quyền admin khi khởi động |
@@ -117,6 +129,41 @@ mvn spring-boot:run
 
 Không commit `.env`, database local hoặc secret thật. Profile `prod` yêu cầu `JWT_SECRET`/`JWT_BASE64_SECRET` được cấu hình và không dùng secret phát triển mặc định.
 
+### OTP email qua Gmail
+
+Không cần API endpoint bên ngoài. Spring gửi email trực tiếp qua SMTP:
+
+```properties
+AUTH_MAIL_ENABLED=true
+AUTH_MAIL_FROM=your-account@gmail.com
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-account@gmail.com
+MAIL_PASSWORD=your-16-character-app-password
+AUTH_OTP_HASH_SECRET=another-random-secret-at-least-32-bytes
+```
+
+Tài khoản Gmail cần bật xác minh 2 bước rồi tạo [App Password](https://support.google.com/accounts/answer/185833). Không dùng mật khẩu Gmail chính và không commit App Password.
+
+### Đăng nhập Google
+
+Tạo OAuth 2.0 Client loại **Web application** trong Google Auth Platform, sau đó thêm redirect URI:
+
+```text
+http://localhost:8000/login/oauth2/code/google
+```
+
+Cấu hình local:
+
+```properties
+GOOGLE_AUTH_ENABLED=true
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI={baseUrl}/login/oauth2/code/google
+```
+
+Production phải đăng ký thêm URI HTTPS đúng domain, ví dụ `https://app.example.com/login/oauth2/code/google`. Đăng nhập Google OAuth không yêu cầu bật Cloud Billing.
+
 ### PostgreSQL hoặc Neon
 
 ```properties
@@ -124,6 +171,8 @@ DATABASE_URL=jdbc:postgresql://host/database?sslmode=require
 DATABASE_USERNAME=your-username
 DATABASE_PASSWORD=your-password
 ```
+
+Flyway quản lý thay đổi schema. Migration xác thực bổ sung identity, OTP, refresh session và trusted device nhưng không xoá hoặc tạo lại `users`, `clients`, folder hay flashcard. Tài khoản cũ giữ nguyên UUID và quan hệ dữ liệu; email cũ được đánh dấu chưa xác minh cho đến khi hoàn tất OTP hoặc liên kết Google bằng mật khẩu hiện tại.
 
 ### Azure Translator
 
@@ -149,6 +198,7 @@ Khi frontend và backend khác origin, cấu hình chính xác origin của fron
 
 ```properties
 APP_CORS_ALLOWED_ORIGINS=https://app.example.com
+APP_FRONTEND_BASE_URL=https://app.example.com
 AUTH_COOKIE_SECURE=true
 AUTH_COOKIE_SAME_SITE=None
 ```
@@ -165,8 +215,13 @@ Trong bản frontend được deploy riêng, đặt URL backend trong `index.htm
 
 | Method | Endpoint | Chức năng |
 | --- | --- | --- |
-| `POST` | `/api/auth/register` | Tạo tài khoản và phát cookie xác thực |
-| `POST` | `/api/auth/login` | Đăng nhập và phát cookie xác thực |
+| `POST` | `/api/auth/register` | Tạo tài khoản và gửi OTP xác minh email |
+| `POST` | `/api/auth/login` | Xác thực mật khẩu và yêu cầu OTP khi cần |
+| `POST` | `/api/auth/otp/verify` | Xác minh OTP và tuỳ chọn nhớ thiết bị |
+| `POST` | `/api/auth/otp/resend` | Gửi lại OTP theo thời gian chờ |
+| `POST` | `/api/auth/refresh` | Xoay refresh token và cấp access JWT mới |
+| `GET` | `/api/auth/google/start` | Bắt đầu Google OpenID Connect |
+| `POST` | `/api/auth/google/link` | Liên kết Google với tài khoản cũ sau khi xác nhận mật khẩu |
 | `GET` | `/api/auth/me` | Lấy hồ sơ hiện tại |
 | `POST` | `/api/auth/logout` | Xoá cookie xác thực |
 | `GET` | `/api/library` | Lấy thư viện của người dùng |
@@ -201,7 +256,7 @@ src/main/resources/
 │   └── css/          # Stylesheet của ứng dụng
 └── templates/        # HTML fragments được phục vụ tĩnh qua /views/**
     ├── admin/        # Giao diện quản trị
-    ├── auth/         # Đăng nhập và đăng ký
+    ├── auth/         # Đăng nhập, đăng ký, OTP và liên kết Google
     ├── error/        # Giao diện lỗi phía SPA
     └── fragments/    # Shell và component tái sử dụng
 ```
@@ -212,9 +267,9 @@ Thư mục `templates` chỉ dùng để phân loại HTML fragment cho frontend
 
 Repository có sẵn `Dockerfile` multi-stage và `render.yaml`. Khi triển khai production:
 
-1. Cấu hình PostgreSQL/Neon và secret JWT.
+1. Cấu hình PostgreSQL/Neon, JWT secret, OTP secret và SMTP.
 2. Đặt `SPRING_PROFILES_ACTIVE=prod`.
-3. Chỉ thêm Azure keys nếu bật các tính năng tương ứng.
+3. Thêm Google OAuth và Azure keys nếu bật các tính năng tương ứng.
 4. Không đưa secret vào image hoặc repository.
 
 Hướng dẫn chi tiết: [docs/deploy-render-docker.md](docs/deploy-render-docker.md).

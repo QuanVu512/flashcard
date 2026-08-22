@@ -5,9 +5,9 @@
 ## Luồng request
 
 1. JavaScript gọi endpoint bằng `fetch` với `credentials: "include"`.
-2. Trình duyệt tự gắn cookie JWT; JavaScript không thể đọc cookie `HttpOnly`.
+2. Trình duyệt tự gắn cookie access JWT và refresh token; JavaScript không thể đọc cookie `HttpOnly`.
 3. Với request ghi dữ liệu, API client thêm CSRF token vào `X-XSRF-TOKEN`.
-4. OAuth2 Resource Server xác thực JWT và tạo `Authentication`.
+4. OAuth2 Resource Server xác thực access JWT và tạo `Authentication`; API client tự xoay refresh token khi access JWT hết hạn.
 5. Controller bind request DTO, query parameter hoặc path variable.
 6. Controller gọi service để xử lý nghiệp vụ.
 7. Service thực thi transaction và gọi repository.
@@ -42,5 +42,7 @@ fetch("/api/library", {
 - `GET /api/sets/{id}/learn`: tạo dữ liệu phiên Learn.
 - `GET /api/sets/{id}/test`: tạo dữ liệu phiên Test.
 - `POST /api/handwriting/recognize`: gửi ảnh canvas đến backend để gọi Azure Vision.
+- `POST /api/auth/otp/verify`: xác minh email/thiết bị rồi cấp phiên mật khẩu.
+- `GET /api/auth/google/start`: bắt đầu Google OpenID Connect và quay về SPA sau callback.
 
 `SpaController` chỉ forward các route giao diện về `index.html`; `FrontendResourceConfig` chỉ ánh xạ `/views/**` tới các HTML fragment. Hai lớp này không lấy entity, không xây `Model` và không chứa nghiệp vụ.
