@@ -595,6 +595,7 @@ a {
     border-radius: 50%;
     border-top-color: #fff;
     height: 18px;
+    will-change: transform;
     width: 18px;
 }
 
@@ -623,13 +624,14 @@ a {
 }
 
 .auth-progress-bar {
-    animation: auth-progress 1.2s ease-in-out infinite;
+    animation: auth-progress 1.2s linear infinite;
     background: var(--brand);
     border-radius: inherit;
     height: 100%;
     left: 0;
     position: absolute;
     top: 0;
+    will-change: transform;
     width: 42%;
 }
 
@@ -654,13 +656,12 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .auth-submit-spinner,
-    .auth-progress-bar {
-        animation: none;
+    .auth-submit-spinner {
+        animation-duration: 1.5s;
     }
 
     .auth-progress-bar {
-        left: 29%;
+        animation-duration: 2.4s;
     }
 }
 
