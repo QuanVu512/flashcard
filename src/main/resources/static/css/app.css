@@ -578,6 +578,92 @@ a {
     min-height: 48px;
 }
 
+.auth-submit {
+    align-items: center;
+    display: inline-flex;
+    gap: 9px;
+    justify-content: center;
+}
+
+.auth-submit.is-loading {
+    cursor: wait;
+}
+
+.auth-submit-spinner {
+    animation: auth-spinner 0.75s linear infinite;
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-radius: 50%;
+    border-top-color: #fff;
+    height: 18px;
+    width: 18px;
+}
+
+.auth-progress {
+    color: var(--muted);
+    display: grid;
+    font-size: 0.8rem;
+    font-weight: 700;
+    gap: 7px;
+    margin-top: 2px;
+}
+
+.auth-progress[hidden],
+.auth-submit-spinner[hidden] {
+    display: none;
+}
+
+.auth-progress-track {
+    background: rgba(66, 87, 255, 0.13);
+    border-radius: 999px;
+    display: block;
+    height: 4px;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+}
+
+.auth-progress-bar {
+    animation: auth-progress 1.2s ease-in-out infinite;
+    background: var(--brand);
+    border-radius: inherit;
+    height: 100%;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 42%;
+}
+
+@keyframes auth-spinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes auth-progress {
+    0% {
+        transform: translateX(-115%);
+    }
+
+    55% {
+        transform: translateX(105%);
+    }
+
+    100% {
+        transform: translateX(240%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-submit-spinner,
+    .auth-progress-bar {
+        animation: none;
+    }
+
+    .auth-progress-bar {
+        left: 29%;
+    }
+}
+
 .btn-google {
     align-items: center;
     background: #fff;

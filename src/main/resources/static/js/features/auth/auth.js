@@ -77,6 +77,7 @@ async function handleAuthSubmit(form) {
     errorBox.hidden = true;
     const submitButton = form.querySelector('button[type="submit"]');
     submitButton.disabled = true;
+    setLoginSubmitting(form, true);
 
     try {
         if (mode === "otp") {
@@ -109,8 +110,28 @@ async function handleAuthSubmit(form) {
         }
         showFormError(errorBox, error.message);
     } finally {
-        submitButton.disabled = false;
+        if (submitButton.isConnected) {
+            submitButton.disabled = false;
+            setLoginSubmitting(form, false);
+        }
     }
+}
+
+function setLoginSubmitting(form, isSubmitting) {
+    if (form.dataset.authForm !== "login") return;
+
+    const submitButton = form.querySelector('button[type="submit"]');
+    const submitLabel = form.querySelector("[data-submit-label]");
+    const submitSpinner = form.querySelector("[data-submit-spinner]");
+    const progress = form.querySelector("[data-login-progress]");
+    if (!submitButton || !submitLabel || !submitSpinner || !progress) return;
+
+    form.setAttribute("aria-busy", String(isSubmitting));
+    submitButton.setAttribute("aria-busy", String(isSubmitting));
+    submitButton.classList.toggle("is-loading", isSubmitting);
+    submitLabel.textContent = isSubmitting ? "Đang đăng nhập..." : "Đăng nhập";
+    submitSpinner.hidden = !isSubmitting;
+    progress.hidden = !isSubmitting;
 }
 
 async function verifyOtp(form) {

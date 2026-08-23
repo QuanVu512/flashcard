@@ -14,7 +14,16 @@
             <label class="form-label" for="password">Mật khẩu</label>
             <input id="password" class="form-control" name="password" type="password" placeholder="example1@-.*" autocomplete="current-password" required>
             <div class="field-error" data-form-error hidden></div>
-            <button class="btn btn-primary" type="submit">Đăng nhập</button>
+            <button class="btn btn-primary auth-submit" type="submit">
+                <span class="auth-submit-spinner" data-submit-spinner aria-hidden="true" hidden></span>
+                <span data-submit-label>Đăng nhập</span>
+            </button>
+            <div class="auth-progress" data-login-progress role="status" aria-live="polite" hidden>
+                <span class="auth-progress-track" aria-hidden="true">
+                    <span class="auth-progress-bar"></span>
+                </span>
+                <span>Đang xử lý...</span>
+            </div>
         </form>
         <div class="auth-switch">Chưa có tài khoản? <a href="/register" data-nav="/register">Đăng ký</a></div>
     </section>
