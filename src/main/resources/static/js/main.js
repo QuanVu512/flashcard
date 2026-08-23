@@ -6,6 +6,7 @@ const templates = [
     "auth/login",
     "auth/register",
     "auth/otp",
+    "auth/otp-notice",
     "auth/google-link",
     "fragments/shell",
     "library",

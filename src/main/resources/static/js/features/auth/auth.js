@@ -4,6 +4,7 @@ import {navigate} from "../../core/navigation.js";
 import {app, state} from "../../core/state.js";
 import {cloneTemplate} from "../../core/templates.js";
 import {showFormError} from "../../core/ui.js";
+import {showOtpNotice} from "./otp-notice.js";
 
 let activeOtpChallenge = null;
 let resendCountdownTimer = null;
@@ -100,7 +101,7 @@ async function handleAuthSubmit(form) {
 
         const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
         const payload = await api(endpoint, {method: "POST", body: JSON.stringify(data)});
-        handleAuthFlow(payload);
+        handleAuthFlow(payload, {showNotice: mode === "login"});
     } catch (error) {
         if (mode === "otp" && error.authAction === "LOGIN") {
             clearResendCountdown();
@@ -195,9 +196,12 @@ async function handleOtpResend(button) {
     }
 }
 
-function handleAuthFlow(payload) {
+function handleAuthFlow(payload, options = {}) {
     if (payload?.status === "OTP_REQUIRED") {
         showOtp(payload);
+        if (options.showNotice) {
+            showOtpNotice(app);
+        }
         return;
     }
     if (payload?.status === "AUTHENTICATED" && payload.session) {
