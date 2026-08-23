@@ -32,7 +32,7 @@ flowchart LR
     SERVICE --> REPO[Spring Data JPA]
     REPO --> DB[(H2 / PostgreSQL)]
     SERVICE --> AZURE[Azure Translator / Vision]
-    SERVICE --> SMTP[SMTP email]
+    SERVICE --> MAILJET[Mailjet Email API]
     UI --> GOOGLE[Google OpenID Connect]
     GOOGLE -->|OAuth callback| API
 ```
@@ -61,7 +61,7 @@ Xem chi tiết tại [docs/security.md](docs/security.md) và [docs/mvc-flow.md]
 | Persistence | Spring Data JPA, Hibernate |
 | Database | H2 cho local, PostgreSQL/Neon cho production |
 | Security | OAuth2 Client/Resource Server, OpenID Connect, JWT, BCrypt, OTP, CSRF |
-| Tích hợp | Google Identity, SMTP, Azure Translator, Azure AI Vision |
+| Tích hợp | Google Identity, Mailjet Email API, Azure Translator, Azure AI Vision |
 | Build | Gradle Wrapper hoặc Maven |
 | Deploy | Docker, Render |
 
@@ -80,7 +80,7 @@ git clone https://github.com/QuanVu512/flashcard.git
 cd flashcard
 ```
 
-Ứng dụng mặc định dùng H2 file nên không cần cài database ngoài. Để đăng ký và đăng nhập bằng mật khẩu, hãy cấu hình SMTP theo mục bên dưới trước khi tạo tài khoản.
+Ứng dụng mặc định dùng H2 file nên không cần cài database ngoài. Để đăng ký và đăng nhập bằng mật khẩu, hãy cấu hình Mailjet theo mục bên dưới trước khi tạo tài khoản.
 
 Trên Windows:
 
@@ -114,9 +114,10 @@ mvn spring-boot:run
 | `DATABASE_PASSWORD` | Production | Mật khẩu database |
 | `JWT_SECRET` hoặc `JWT_BASE64_SECRET` | Production | Secret ngẫu nhiên tối thiểu 32 byte |
 | `AUTH_OTP_HASH_SECRET` | Có | Secret riêng tối thiểu 32 byte để HMAC mã OTP |
-| `AUTH_MAIL_ENABLED` | Có với đăng nhập mật khẩu | Bật gửi OTP qua SMTP |
-| `AUTH_MAIL_FROM` | Có với SMTP | Địa chỉ người gửi OTP |
-| `MAIL_USERNAME`, `MAIL_PASSWORD` | Có với SMTP | Tài khoản và mật khẩu SMTP; Gmail dùng App Password |
+| `AUTH_MAIL_ENABLED` | Có với đăng nhập mật khẩu | Bật gửi OTP qua email |
+| `AUTH_MAIL_PROVIDER` | Có khi bật email | Đặt thành `mailjet` để sử dụng Mailjet Send API |
+| `AUTH_MAIL_FROM` | Có khi bật email | Địa chỉ người gửi đã được nhà cung cấp xác minh |
+| `MAILJET_API_KEY`, `MAILJET_SECRET_KEY` | Khi provider là `mailjet` | Thông tin xác thực Send API của Mailjet |
 | `GOOGLE_AUTH_ENABLED` | Không | Bật đăng nhập Google |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Khi bật Google | OAuth 2.0 Web Client trên Google Auth Platform |
 | `APP_FRONTEND_BASE_URL` | Khi frontend khác origin | Origin frontend để callback Google quay lại đúng SPA |
@@ -129,21 +130,22 @@ mvn spring-boot:run
 
 Không commit `.env`, database local hoặc secret thật. Profile `prod` yêu cầu `JWT_SECRET`/`JWT_BASE64_SECRET` được cấu hình và không dùng secret phát triển mặc định.
 
-### OTP email qua Gmail
+### OTP email qua Mailjet
 
-Không cần API endpoint bên ngoài. Spring gửi email trực tiếp qua SMTP:
+Mailjet API sử dụng HTTPS nên hoạt động trên Render Free, nơi các cổng SMTP phổ biến bị chặn. Xác minh địa chỉ người gửi trong Mailjet rồi cấu hình:
 
 ```properties
 AUTH_MAIL_ENABLED=true
-AUTH_MAIL_FROM=your-account@gmail.com
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=your-account@gmail.com
-MAIL_PASSWORD=your-16-character-app-password
+AUTH_MAIL_PROVIDER=mailjet
+AUTH_MAIL_FROM=your-verified-sender@example.com
+MAILJET_API_KEY=your-mailjet-api-key
+MAILJET_SECRET_KEY=your-mailjet-secret-key
+MAILJET_API_URL=https://api.mailjet.com
+MAILJET_SENDER_NAME=Flashcard
 AUTH_OTP_HASH_SECRET=another-random-secret-at-least-32-bytes
 ```
 
-Tài khoản Gmail cần bật xác minh 2 bước rồi tạo [App Password](https://support.google.com/accounts/answer/185833). Không dùng mật khẩu Gmail chính và không commit App Password.
+Không commit API key hoặc Secret key. Chỉ lưu các secret này trong `.env` local hoặc phần Environment của nền tảng triển khai.
 
 ### Đăng nhập Google
 
@@ -267,7 +269,7 @@ Thư mục `templates` chỉ dùng để phân loại HTML fragment cho frontend
 
 Repository có sẵn `Dockerfile` multi-stage và `render.yaml`. Khi triển khai production:
 
-1. Cấu hình PostgreSQL/Neon, JWT secret, OTP secret và SMTP.
+1. Cấu hình PostgreSQL/Neon, JWT secret, OTP secret và Mailjet Email API.
 2. Đặt `SPRING_PROFILES_ACTIVE=prod`.
 3. Thêm Google OAuth và Azure keys nếu bật các tính năng tương ứng.
 4. Không đưa secret vào image hoặc repository.

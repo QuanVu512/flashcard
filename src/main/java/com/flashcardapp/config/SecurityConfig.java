@@ -39,6 +39,7 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
         AuthSessionProperties.class,
         OtpProperties.class,
         AuthMailProperties.class,
+        MailjetMailProperties.class,
         GoogleAuthProperties.class
 })
 public class SecurityConfig {

@@ -18,7 +18,7 @@ public class AuthMailProperties {
             throw new IllegalStateException("Gửi OTP đang tắt. Hãy cấu hình AUTH_MAIL_ENABLED=true");
         }
         if (!StringUtils.hasText(from)) {
-            throw new IllegalStateException("Cần cấu hình AUTH_MAIL_FROM hoặc MAIL_USERNAME");
+            throw new IllegalStateException("Cần cấu hình AUTH_MAIL_FROM");
         }
         return from.trim();
     }
