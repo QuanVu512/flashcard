@@ -1,0 +1,62 @@
+.handwriting-candidates {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: flex;
+    height: 60px;
+    margin-top: 12px;
+    overflow: hidden;
+    padding: 8px 12px;
+}
+
+.handwriting-candidate-list {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.handwriting-candidate-list::-webkit-scrollbar {
+    display: none;
+}
+
+.handwriting-candidate {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink);
+    display: inline-flex;
+    font-size: 1.45rem;
+    font-weight: 750;
+    height: 42px;
+    justify-content: center;
+    min-width: 42px;
+    padding: 0 10px;
+    flex: 0 0 auto;
+    transition: border-color 120ms ease, box-shadow 120ms ease, color 120ms ease;
+}
+
+.handwriting-candidate:hover,
+.handwriting-candidate:focus-visible {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(66, 84, 255, 0.13);
+    color: var(--brand);
+    outline: none;
+}
+
+@media (max-width: 640px) {
+    .handwriting-candidates {
+        height: 62px;
+    }
+
+    .handwriting-candidate {
+        height: 44px;
+        min-width: 44px;
+    }
+}

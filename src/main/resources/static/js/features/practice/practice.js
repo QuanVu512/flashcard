@@ -173,15 +173,17 @@ function handwritingAnswer() {
             <input class="form-control" name="answer" placeholder="Nhập đáp án">
             <button class="btn btn-primary" type="submit">Trả lời</button>
         </form>
+        <div class="handwriting-candidates" data-handwriting-candidates aria-label="Gợi ý chữ viết tay">
+            <div class="handwriting-candidate-list" data-handwriting-candidate-list aria-live="polite"></div>
+        </div>
         <section class="handwriting-box">
             <div class="handwriting-head">
                 <strong><i class="bi bi-pencil-square"></i> Bảng vẽ</strong>
                 <select class="form-select" data-handwriting-language>
-                    <option value="en">Tiếng Anh</option>
+                    <option value="" selected disabled>---Chọn ngôn ngữ---</option>
                     <option value="zh-Hans">Tiếng Trung</option>
                     <option value="ja">Tiếng Nhật</option>
                     <option value="ko">Tiếng Hàn</option>
-                    <option value="vi">Tiếng Việt</option>
                 </select>
                 <button class="btn btn-light" type="button" data-clear-handwriting><i class="bi bi-eraser"></i> Xóa</button>
                 <button class="btn btn-primary" type="button" data-recognize-handwriting><i class="bi bi-check-lg"></i> Xong</button>
